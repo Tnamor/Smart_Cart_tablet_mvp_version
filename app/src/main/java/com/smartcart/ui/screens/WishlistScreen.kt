@@ -19,10 +19,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,11 +37,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.smartcart.R
 import com.smartcart.data.model.Product
 import com.smartcart.data.repository.AppState
 import com.smartcart.ui.components.CartPanel
@@ -207,7 +214,9 @@ private fun WishlistProductCard(
 ) {
     val lang = AppState.language
     val name = product.localizedName(lang)
-    val inCart = AppState.isInCart(product.id)
+    val quantity = AppState.cartQty(product.id)
+    val inCart = quantity > 0
+    val context = LocalContext.current
 
     Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -218,7 +227,9 @@ private fun WishlistProductCard(
             Column {
                 Box(Modifier.fillMaxWidth().height(150.dp).background(Gray100)) {
                     AsyncImage(
-                        model = product.imageUrl,
+                        model = ImageRequest.Builder(context).data(product.imageUrl).crossfade(true).build(),
+                        placeholder = painterResource(R.drawable.product_placeholder),
+                        error = painterResource(R.drawable.product_placeholder),
                         contentDescription = name,
                         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                         contentScale = ContentScale.Crop
@@ -268,19 +279,24 @@ private fun WishlistProductCard(
                             fontWeight = FontWeight.Bold,
                             color = Primary
                         )
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(if (inCart) SuccessGreen else AccentOrange, CircleShape)
-                                .clickable { onAdd() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                if (inCart) Icons.Rounded.Check else Icons.Rounded.Add,
-                                contentDescription = null,
-                                tint = White,
-                                modifier = Modifier.size(20.dp)
-                            )
+                        if (inCart) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { AppState.updateCartQty(product.id, -1) }) {
+                                    Icon(Icons.Rounded.Remove, contentDescription = null, tint = Primary)
+                                }
+                                Text("$quantity", fontWeight = FontWeight.Bold, color = TextPrimary)
+                                IconButton(onClick = { AppState.updateCartQty(product.id, 1) }) {
+                                    Icon(Icons.Rounded.Add, contentDescription = null, tint = Primary)
+                                }
+                            }
+                        } else {
+                            FloatingActionButton(
+                                onClick = onAdd,
+                                containerColor = AccentOrange,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Rounded.Add, contentDescription = null, tint = White, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }

@@ -7,11 +7,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -26,6 +27,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.smartcart.R
 import com.smartcart.data.model.Deal
 import com.smartcart.data.model.MockData
 import com.smartcart.data.repository.AppState
@@ -169,7 +173,9 @@ private fun FilterChip(label: String, active: Boolean, onClick: () -> Unit) {
 private fun DealCard(deal: Deal, onAdd: () -> Unit) {
     val lang = AppState.language
     val name = deal.product.localizedName(lang)
-    val inCart = AppState.isInCart(deal.product.id)
+    val quantity = AppState.cartQty(deal.product.id)
+    val inCart = quantity > 0
+    val context = LocalContext.current
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -180,7 +186,9 @@ private fun DealCard(deal: Deal, onAdd: () -> Unit) {
         Column {
             Box(Modifier.fillMaxWidth().height(150.dp).background(Gray100)) {
                 AsyncImage(
-                    model = deal.product.imageUrl,
+                    model = ImageRequest.Builder(context).data(deal.product.imageUrl).crossfade(true).build(),
+                    placeholder = painterResource(R.drawable.product_placeholder),
+                    error = painterResource(R.drawable.product_placeholder),
                     contentDescription = name,
                     modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                     contentScale = ContentScale.Crop
@@ -249,19 +257,24 @@ private fun DealCard(deal: Deal, onAdd: () -> Unit) {
                             color = Primary
                         )
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(if (inCart) SuccessGreen else AccentOrange, CircleShape)
-                            .clickable { onAdd() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            if (inCart) Icons.Rounded.Check else Icons.Rounded.Add,
-                            contentDescription = null,
-                            tint = White,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    if (inCart) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { AppState.updateCartQty(deal.product.id, -1) }) {
+                                Icon(Icons.Rounded.Remove, contentDescription = null, tint = Primary)
+                            }
+                            Text("$quantity", fontWeight = FontWeight.Bold, color = TextPrimary)
+                            IconButton(onClick = { AppState.updateCartQty(deal.product.id, 1) }) {
+                                Icon(Icons.Rounded.Add, contentDescription = null, tint = Primary)
+                            }
+                        }
+                    } else {
+                        FloatingActionButton(
+                            onClick = onAdd,
+                            containerColor = AccentOrange,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = null, tint = White, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }

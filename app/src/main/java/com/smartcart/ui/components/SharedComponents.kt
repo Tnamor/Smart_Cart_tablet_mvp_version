@@ -2,23 +2,37 @@ package com.smartcart.ui.components
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.smartcart.R
 import com.smartcart.data.repository.AppState
 import com.smartcart.ui.theme.*
 
@@ -30,12 +44,11 @@ fun SharedSidebar(
     activeRoute: String = "home",
     onNavigate: (String) -> Unit = {}
 ) {
-    val t = AppState.t()
     val items = listOf(
-        Triple("home",  Icons.Rounded.Home,            t.home),
-        Triple("list",  Icons.Rounded.ShoppingBag,     t.myShoppingList),
-        Triple("cats",  Icons.Rounded.GridView,        t.navCats),
-        Triple("favs",  Icons.Rounded.FavoriteBorder,  t.navSaved),
+        Triple("home",  Icons.Rounded.Home,            stringResource(R.string.nav_home)),
+        Triple("list",  Icons.Rounded.LocalOffer,      stringResource(R.string.nav_deals)),
+        Triple("cats",  Icons.Rounded.GridView,        stringResource(R.string.nav_categories)),
+        Triple("favs",  Icons.Rounded.FavoriteBorder,  stringResource(R.string.nav_favorites)),
     )
 
     Column(
@@ -94,29 +107,36 @@ private fun SideNavItem(
 ) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp))
-            .background(if (isActive) PrimaryLight else Color.Transparent)
+            .width(64.dp)
             .clickable { onClick() }
-            .padding(vertical = 9.dp),
+            .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (isActive) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .width(3.dp).height(28.dp)
-                    .background(Primary, RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isActive) PrimaryLight else Color.Transparent),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    label,
+                    tint = if (isActive) Primary else TextMuted,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                label,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                color = if (isActive) Primary else TextMuted,
+                modifier = Modifier.width(60.dp)
             )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, label,
-                tint = if (isActive) Primary else TextMuted,
-                modifier = Modifier.size(20.dp))
-            Spacer(Modifier.height(2.dp))
-            Text(label, fontSize = 8.sp,
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                color = if (isActive) Primary else TextMuted)
         }
     }
 }
@@ -202,6 +222,12 @@ fun CartPanel(onCheckout: () -> Unit) {
     val tax = AppState.cartTax
     val discount = AppState.cartDiscount
     val total = (subtotal + tax - discount).coerceAtLeast(0.0)
+    val suggestedProducts = remember(cart) {
+        AppState.products.filterNot { p -> cart.any { it.product.id == p.id } }.take(6)
+    }
+    var showBudgetDialog by remember { mutableStateOf(false) }
+    var budgetInput by remember { mutableStateOf(((AppState.budgetTenge ?: 0.0).toInt()).toString()) }
+    val budget = AppState.budgetTenge
 
     Surface(modifier = Modifier.width(300.dp).fillMaxHeight(), color = White, shadowElevation = 4.dp) {
         Column(Modifier.fillMaxSize()) {
@@ -216,7 +242,26 @@ fun CartPanel(onCheckout: () -> Unit) {
                         color = PrimaryDark, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
-            HorizontalDivider(color = Border)
+            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+
+            if (budget == null) {
+                OutlinedButton(
+                    onClick = { showBudgetDialog = true },
+                    border = BorderStroke(1.dp, Primary),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(36.dp)
+                ) {
+                    Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.set_budget), color = Primary, fontSize = 13.sp)
+                }
+            } else {
+                BudgetTracker(cartTotalTenge = total * 130.0, budgetTenge = budget, onSetBudget = {
+                    AppState.budgetTenge = it
+                })
+            }
+            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (cart.isEmpty()) {
@@ -231,9 +276,14 @@ fun CartPanel(onCheckout: () -> Unit) {
                     cart.forEach { item ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            AsyncImage(model = item.product.imageUrl, contentDescription = null,
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current).data(item.product.imageUrl).crossfade(true).build(),
+                                placeholder = painterResource(R.drawable.product_placeholder),
+                                error = painterResource(R.drawable.product_placeholder),
+                                contentDescription = null,
                                 modifier = Modifier.size(42.dp).clip(CircleShape).background(Gray100),
-                                contentScale = ContentScale.Crop)
+                                contentScale = ContentScale.Crop
+                            )
                             Column(Modifier.weight(1f)) {
                                 Text(item.product.localizedName(lang), fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -248,6 +298,39 @@ fun CartPanel(onCheckout: () -> Unit) {
                     }
                 }
             }
+            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.dont_forget), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(suggestedProducts, key = { it.id }) { product ->
+                        Surface(
+                            modifier = Modifier.width(100.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = White,
+                            border = BorderStroke(1.dp, Border)
+                        ) {
+                            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current).data(product.imageUrl).crossfade(true).build(),
+                                    placeholder = painterResource(R.drawable.product_placeholder),
+                                    error = painterResource(R.drawable.product_placeholder),
+                                    contentDescription = product.localizedName(lang),
+                                    modifier = Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(8.dp)).background(Gray100),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Text(
+                                    product.localizedName(lang),
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
             Column(Modifier.background(Background).padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 CartTRow(t.subtotal, subtotal.asTenge())
@@ -271,6 +354,29 @@ fun CartPanel(onCheckout: () -> Unit) {
             }
         }
     }
+
+    if (showBudgetDialog) {
+        AlertDialog(
+            onDismissRequest = { showBudgetDialog = false },
+            title = { Text(stringResource(R.string.set_budget)) },
+            text = {
+                OutlinedTextField(
+                    value = budgetInput,
+                    onValueChange = { budgetInput = it.filter { ch -> ch.isDigit() } },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    budgetInput.toDoubleOrNull()?.let { AppState.budgetTenge = it }
+                    showBudgetDialog = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBudgetDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -278,5 +384,37 @@ fun CartTRow(label: String, value: String, valueColor: Color = TextSecondary) {
     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
         Text(label, fontSize = 12.sp, color = TextMuted)
         Text(value, fontSize = 12.sp, color = valueColor, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun BudgetTracker(cartTotalTenge: Double, budgetTenge: Double, onSetBudget: (Double) -> Unit) {
+    val progress = (cartTotalTenge / budgetTenge).toFloat().coerceIn(0f, 1.5f)
+    val barColor = when {
+        progress < 0.7f -> SuccessGreen
+        progress < 0.9f -> AccentOrange
+        else -> ErrorRed
+    }
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+            Text("Budget", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text("${budgetTenge.toInt()}₸", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Primary)
+        }
+        LinearProgressIndicator(
+            progress = { progress.coerceAtMost(1f) },
+            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            color = barColor,
+            trackColor = Gray100
+        )
+        OutlinedButton(
+            onClick = { onSetBudget(budgetTenge) },
+            border = BorderStroke(1.dp, Primary),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.fillMaxWidth().height(36.dp)
+        ) {
+            Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.set_budget), color = Primary, fontSize = 13.sp)
+        }
     }
 }

@@ -7,6 +7,7 @@ import com.smartcart.data.model.*
 object AppState {
     var language  by mutableStateOf(AppLanguage.RU)
     var currentUser by mutableStateOf<User?>(null)
+    var budgetTenge by mutableStateOf<Double?>(null)
 
     val products = mutableStateListOf<Product>().apply { addAll(MockData.products) }
     val cart      = mutableStateListOf<CartItem>()

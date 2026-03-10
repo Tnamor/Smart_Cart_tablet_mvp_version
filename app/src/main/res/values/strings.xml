@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Smart Cart</string>
+    <string name="set_budget">Set budget</string>
+    <string name="dont_forget">Don\'t forget!</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_deals">Deals</string>
+    <string name="nav_categories">Shop</string>
+    <string name="nav_favorites">Saved</string>
 </resources>

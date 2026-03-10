@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Smart Cart</string>
+    <string name="set_budget">Задать бюджет</string>
+    <string name="dont_forget">Не забудьте!</string>
+    <string name="nav_home">Главная</string>
+    <string name="nav_deals">Акции</string>
+    <string name="nav_categories">Каталог</string>
+    <string name="nav_favorites">Избранн</string>
+</resources>

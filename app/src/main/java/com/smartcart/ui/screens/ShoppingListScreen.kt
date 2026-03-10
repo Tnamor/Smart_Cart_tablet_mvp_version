@@ -361,4 +361,13 @@ private fun Double.asTenge() = "\$${String.format("%.2f", this)}"
 
 @Preview(showBackground = true, device = "spec:width=1920dp,height=1104dp,dpi=160")
 @Composable
-private fun Preview() { SmartCartTheme { ShoppingListScreen {} } }
+private fun Preview() {
+    SmartCartTheme {
+        ShoppingListScreen(
+            onNavigateToCart = {},
+            onNavigateHome = {},
+            onNavigateCats = {},
+            onNavigateWishlist = {},
+        )
+    }
+}

@@ -4,7 +4,6 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -17,6 +16,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,6 +25,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.smartcart.R
 import com.smartcart.data.model.Product
 import com.smartcart.data.repository.AppState
 import com.smartcart.ui.components.CameraDebugPanel
@@ -178,7 +182,9 @@ fun HomeScreen(
 private fun ProductCard(product: Product, onAdd: () -> Unit) {
     val lang    = AppState.language
     val name    = product.localizedName(lang)
-    val inCart  = AppState.isInCart(product.id)
+    val quantity = AppState.cartQty(product.id)
+    val inCart  = quantity > 0
+    val context = LocalContext.current
     val badge   = when (product.id) { "1" -> Pair("-20%", ErrorRed); "7" -> Pair("BOGO", Primary); else -> null }
 
     Surface(
@@ -189,9 +195,14 @@ private fun ProductCard(product: Product, onAdd: () -> Unit) {
     ) {
         Column {
             Box(Modifier.fillMaxWidth().height(150.dp).background(Gray100)) {
-                AsyncImage(model = product.imageUrl, contentDescription = name,
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(product.imageUrl).crossfade(true).build(),
+                    placeholder = painterResource(R.drawable.product_placeholder),
+                    error = painterResource(R.drawable.product_placeholder),
+                    contentDescription = name,
                     modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-                    contentScale = ContentScale.Crop)
+                    contentScale = ContentScale.Crop
+                )
                 badge?.let { (text, color) ->
                     Surface(modifier = Modifier.padding(10.dp).align(Alignment.TopStart), shape = RoundedCornerShape(6.dp), color = color) {
                         Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = White,
@@ -212,14 +223,24 @@ private fun ProductCard(product: Product, onAdd: () -> Unit) {
                             style = LocalTextStyle.current.copy(textDecoration = TextDecoration.LineThrough))
                         Text(product.formattedPrice(), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     }
-                    Box(
-                        modifier = Modifier.size(36.dp)
-                            .background(if (inCart) SuccessGreen else AccentOrange, CircleShape)
-                            .clickable { onAdd() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(if (inCart) Icons.Rounded.Check else Icons.Rounded.Add,
-                            null, tint = White, modifier = Modifier.size(20.dp))
+                    if (inCart) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { AppState.updateCartQty(product.id, -1) }) {
+                                Icon(Icons.Rounded.Remove, contentDescription = null, tint = Primary)
+                            }
+                            Text("$quantity", fontWeight = FontWeight.Bold, color = TextPrimary)
+                            IconButton(onClick = { AppState.updateCartQty(product.id, 1) }) {
+                                Icon(Icons.Rounded.Add, contentDescription = null, tint = Primary)
+                            }
+                        }
+                    } else {
+                        FloatingActionButton(
+                            onClick = onAdd,
+                            containerColor = AccentOrange,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = null, tint = White, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }
