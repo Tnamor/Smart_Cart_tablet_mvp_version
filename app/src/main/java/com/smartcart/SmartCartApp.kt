@@ -10,22 +10,28 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @HiltAndroidApp
 class SmartCartApp : Application() {
 
-    @Inject lateinit var sessionCache: SessionCache
+    @Inject lateinit var sessionCacheProvider: javax.inject.Provider<SessionCache>
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
 
-        // Restore last cached session if available (offline support)
+        // Restore last cached session; mutate Compose state only on Main.
         scope.launch {
-            val session: CartSession? = sessionCache.loadLastSession()
-            if (session != null) {
-                AppState.restoreFromSession(session)
+            try {
+                val session: CartSession? = sessionCacheProvider.get().loadLastSession()
+                if (session != null) {
+                    withContext(Dispatchers.Main) {
+                        AppState.restoreFromSession(session)
+                    }
+                }
+            } catch (_: Exception) {
             }
         }
     }

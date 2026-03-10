@@ -50,7 +50,7 @@ import com.smartcart.ui.theme.*
 @Composable
 fun WishlistScreen(
     onNavigateHome: () -> Unit,
-    onNavigateDeals: () -> Unit,
+    onNavigateToList: () -> Unit,
     onNavigateCats: () -> Unit,
     onNavigateToCart: () -> Unit,
 ) {
@@ -86,7 +86,7 @@ fun WishlistScreen(
             onNavigate = { r ->
                 when (r) {
                     "home" -> onNavigateHome()
-                    "deals" -> onNavigateDeals()
+                    "list" -> onNavigateToList()
                     "cats" -> onNavigateCats()
                 }
             }

@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         enableEdgeToEdge()
-        startLockTask()   // Kiosk mode
+        // Kiosk mode disabled in debug/emulator flow.
 
         setContent {
             SmartCartTheme {

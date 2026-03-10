@@ -10,7 +10,7 @@ import com.smartcart.ui.screens.*
 @Composable
 fun AppNavigation() {
     val nav = rememberNavController()
-    val start = if (AppState.currentUser != null) "home" else "login"
+    val start = "login"
 
     NavHost(nav, startDestination = start) {
         composable("login") {
@@ -32,6 +32,7 @@ fun AppNavigation() {
         composable("deals") {
             DealsScreen(
                 onNavigateHome = { nav.navigate("home") { launchSingleTop = true } },
+                onNavigateToList = { nav.navigate("list") { launchSingleTop = true } },
                 onNavigateCats = { nav.navigate("cats") { launchSingleTop = true } },
                 onNavigateWishlist = { nav.navigate("favs") { launchSingleTop = true } },
                 onNavigateToCart = { nav.navigate("cart") }
@@ -40,7 +41,7 @@ fun AppNavigation() {
         composable("cats") {
             CategoriesScreen(
                 onNavigateHome = { nav.navigate("home") { launchSingleTop = true } },
-                onNavigateDeals = { nav.navigate("deals") { launchSingleTop = true } },
+                onNavigateToList = { nav.navigate("list") { launchSingleTop = true } },
                 onNavigateWishlist = { nav.navigate("favs") { launchSingleTop = true } },
                 onNavigateToCart = { nav.navigate("cart") }
             )
@@ -48,15 +49,20 @@ fun AppNavigation() {
         composable("favs") {
             WishlistScreen(
                 onNavigateHome = { nav.navigate("home") { launchSingleTop = true } },
-                onNavigateDeals = { nav.navigate("deals") { launchSingleTop = true } },
+                onNavigateToList = { nav.navigate("list") { launchSingleTop = true } },
                 onNavigateCats = { nav.navigate("cats") { launchSingleTop = true } },
                 onNavigateToCart = { nav.navigate("cart") }
             )
         }
         composable("list") {
-            ShoppingListScreen(onNavigateToCart = {
-                nav.navigate("cart") { popUpTo("list") { inclusive = true } }
-            })
+            ShoppingListScreen(
+                onNavigateToCart = {
+                    nav.navigate("cart") { popUpTo("list") { inclusive = true } }
+                },
+                onNavigateHome = { nav.navigate("home") { launchSingleTop = true } },
+                onNavigateCats = { nav.navigate("cats") { launchSingleTop = true } },
+                onNavigateWishlist = { nav.navigate("favs") { launchSingleTop = true } }
+            )
         }
         composable("cart") {
             CartScreen(

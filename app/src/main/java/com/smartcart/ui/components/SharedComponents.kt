@@ -33,7 +33,7 @@ fun SharedSidebar(
     val t = AppState.t()
     val items = listOf(
         Triple("home",  Icons.Rounded.Home,            t.home),
-        Triple("deals", Icons.Rounded.LocalOffer,      t.navDeals),
+        Triple("list",  Icons.Rounded.ShoppingBag,     t.myShoppingList),
         Triple("cats",  Icons.Rounded.GridView,        t.navCats),
         Triple("favs",  Icons.Rounded.FavoriteBorder,  t.navSaved),
     )

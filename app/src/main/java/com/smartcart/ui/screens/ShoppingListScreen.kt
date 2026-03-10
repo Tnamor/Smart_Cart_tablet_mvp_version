@@ -30,7 +30,12 @@ import com.smartcart.ui.components.SharedSidebar
 import com.smartcart.ui.theme.*
 
 @Composable
-fun ShoppingListScreen(onNavigateToCart: () -> Unit) {
+fun ShoppingListScreen(
+    onNavigateToCart: () -> Unit,
+    onNavigateHome: () -> Unit,
+    onNavigateCats: () -> Unit,
+    onNavigateWishlist: () -> Unit,
+) {
     val t    = AppState.t()
     val lang = AppState.language
     val list = AppState.shoppingList
@@ -47,7 +52,16 @@ fun ShoppingListScreen(onNavigateToCart: () -> Unit) {
 
     Box(Modifier.fillMaxSize().background(Background)) {
         Row(Modifier.fillMaxSize()) {
-            SharedSidebar(activeRoute = "list", onNavigate = { if (it == "home") {} })
+            SharedSidebar(
+                activeRoute = "list",
+                onNavigate = { r ->
+                    when (r) {
+                        "home" -> onNavigateHome()
+                        "cats" -> onNavigateCats()
+                        "favs" -> onNavigateWishlist()
+                    }
+                }
+            )
 
             Column(Modifier.weight(1f).fillMaxHeight()) {
 
