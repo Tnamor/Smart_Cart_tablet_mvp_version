@@ -12,16 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Icon
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -214,8 +211,6 @@ private fun CategoryCard(
 private fun CategoryProductCard(product: Product, onAdd: () -> Unit) {
     val lang = AppState.language
     val name = product.localizedName(lang)
-    val quantity = AppState.cartQty(product.id)
-    val inCart = quantity > 0
     val context = LocalContext.current
 
     Surface(
@@ -277,23 +272,14 @@ private fun CategoryProductCard(product: Product, onAdd: () -> Unit) {
                         fontWeight = FontWeight.Bold,
                         color = Primary
                     )
-                    if (inCart) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFFF3F4F6)).padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { AppState.updateCartQty(product.id, -1) }) {
-                                Icon(Icons.Rounded.Remove, contentDescription = null, tint = Primary)
-                            }
-                            Text("$quantity", fontWeight = FontWeight.Bold, color = TextPrimary)
-                            IconButton(onClick = { AppState.updateCartQty(product.id, 1) }) {
-                                Icon(Icons.Rounded.Add, contentDescription = null, tint = Primary)
-                            }
-                        }
-                    } else {
-                        FloatingActionButton(
-                            onClick = onAdd,
-                            containerColor = AccentOrange,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Rounded.Add, contentDescription = null, tint = White, modifier = Modifier.size(18.dp))
+                            Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Primary))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Auto-detected by AI camera", fontSize = 12.sp, color = TextSecondary)
                         }
                     }
                 }

@@ -1,295 +1,277 @@
 package com.smartcart.ui.screens
 
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Money
+import androidx.compose.material.icons.outlined.QrCode
+import androidx.compose.material.icons.outlined.SupportAgent
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.Image
 import coil3.compose.AsyncImage
+import com.smartcart.data.model.AppStrings
 import com.smartcart.data.model.CartItem
+import com.smartcart.ui.components.rememberQrBitmap
 import com.smartcart.data.repository.AppState
-import com.smartcart.presentation.cart.CartViewModel
-import com.smartcart.ui.theme.*
+import com.smartcart.ui.theme.Background
+import com.smartcart.ui.theme.Border
+import com.smartcart.ui.theme.BorderStrong
+import com.smartcart.ui.theme.Primary
+import com.smartcart.ui.theme.PrimaryLight
+import com.smartcart.ui.theme.SuccessGreen
+import com.smartcart.ui.theme.TextMuted
+import com.smartcart.ui.theme.TextPrimary
+import com.smartcart.ui.theme.TextSecondary
+import com.smartcart.ui.theme.White
+import kotlin.math.absoluteValue
+
+private enum class PaymentType { CARD, KASPI }
+
+private data class SavedCard(val id: String, val bankName: String, val type: String, val lastFour: String)
 
 @Composable
 fun CartScreen(
     onNavigateToList: () -> Unit,
     onNavigateToReceipt: () -> Unit,
 ) {
-    val t    = AppState.t()
-    val lang = AppState.language
-    val cart = AppState.cart
-    val subtotal = AppState.cartTotal
-    val vat      = AppState.cartVat
-    val discount = AppState.cartDiscount
-    val total    = (subtotal + vat - discount).coerceAtLeast(0.0)
+    val cart = AppState.cart.toList()
+    val subtotal = AppState.cartTotal * 130.0
+    val vat = subtotal * 0.12
+    val discount = (AppState.cartDiscount * 130.0).coerceAtLeast(500.0)
+    val total = (subtotal + vat - discount).coerceAtLeast(0.0)
+    val savedCards = remember {
+        listOf(
+            SavedCard("kaspi", "Kaspi Bank", "Visa", "4242"),
+            SavedCard("halyk", "Halyk Bank", "Mastercard", "8888"),
+        )
+    }
+    var selectedPayment by remember { mutableStateOf(PaymentType.CARD) }
+    var selectedCard by remember { mutableStateOf(savedCards.first().id) }
 
-    var payment by remember { mutableStateOf("card") }
-    val viewModel: CartViewModel = hiltViewModel()
+    Row(modifier = Modifier.fillMaxSize().background(Background)) {
+        Column(modifier = Modifier.weight(0.55f).fillMaxSize().padding(24.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onNavigateToList) { Icon(Icons.Rounded.ArrowBack, null, tint = TextPrimary) }
+                Text("Checkout", fontWeight = FontWeight.Bold, fontSize = 24.sp)
+            }
+            Spacer(Modifier.height(20.dp))
+            Text(AppState.t().orderSummary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+            Spacer(Modifier.height(16.dp))
 
-    Column(Modifier.fillMaxSize().background(Background)) {
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(cart) { item -> CheckoutItemRow(item) }
+            }
 
-        // Top Bar (matches CartScreen.tsx h-16 header)
-        Surface(Modifier.fillMaxWidth(), color = White, shadowElevation = 1.dp) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp),
-                Arrangement.SpaceBetween, Alignment.CenterVertically
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Border)
+            PriceRow(AppState.t().subtotal, subtotal.asTenge())
+            PriceRow(AppState.t().vat, vat.asTenge())
+            PriceRow(AppState.t().memberDiscount, "-${discount.asTenge()}", valueColor = Primary, labelColor = Primary)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Border)
+            Row {
+                Text(AppState.t().total, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Spacer(Modifier.weight(1f))
+                Text(total.asTenge(), fontWeight = FontWeight.Bold, fontSize = 28.sp)
+            }
+            Spacer(Modifier.height(16.dp))
+            Box(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFF7ED)).padding(16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    IconButton(onClick = onNavigateToList, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Rounded.ArrowBack, null, tint = TextSecondary)
-                    }
-                    Box(Modifier.size(32.dp).background(Primary, RoundedCornerShape(9.dp)),
-                        contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.ShoppingCart, null, tint = White, modifier = Modifier.size(17.dp))
-                    }
-                    Text(t.autoCart, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // ● Cart Online
-                    Surface(shape = RoundedCornerShape(20.dp), color = SuccessGreen.copy(0.1f),
-                        border = BorderStroke(1.dp, SuccessGreen.copy(0.2f))) {
-                        Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Box(Modifier.size(7.dp).background(SuccessGreen, CircleShape))
-                            Text(t.cartOnline, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                                color = SuccessGreen, letterSpacing = 0.5.sp)
-                        }
-                    }
-                    // Call Assistant
-                    Row(Modifier.clickable {}.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Rounded.HeadsetMic, null, tint = TextSecondary, modifier = Modifier.size(18.dp))
-                        Text(t.callAssistant, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextSecondary)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Star, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text("You'll earn", fontSize = 13.sp, color = TextSecondary)
+                        Text("27 Loyalty Points", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFFF59E0B))
                     }
                 }
             }
         }
 
-        Row(Modifier.weight(1f).padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-
-            // ── Left Panel ────────────────────────────────
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-
-                // Items card
-                Surface(Modifier.weight(1f).fillMaxWidth(), RoundedCornerShape(20.dp), White,
-                    shadowElevation = 1.dp, border = BorderStroke(1.dp, Border)) {
-                    Column(Modifier.fillMaxSize()) {
-                        Row(Modifier.fillMaxWidth().background(Gray50).padding(horizontal = 20.dp, vertical = 14.dp)) {
-                            Text("${t.yourItems} (${cart.sumOf { it.quantity }})",
-                                fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary,
-                                letterSpacing = 0.5.sp)
-                        }
-                        HorizontalDivider(color = Border)
-
-                        if (cart.isEmpty()) {
-                            Box(Modifier.fillMaxSize(), Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Rounded.ShoppingCartCheckout, null, tint = Color(0xFFDDE1EA), modifier = Modifier.size(52.dp))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("Cart is empty", fontSize = 15.sp, color = TextMuted, fontWeight = FontWeight.Medium)
-                                }
-                            }
-                        } else {
-                            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(8.dp)) {
-                                cart.forEachIndexed { i, item ->
-                                    CartItemRow(item, lang.let { AppState.language },
-                                        onInc    = { AppState.updateCartQty(item.product.id, +1) },
-                                        onDec    = { AppState.updateCartQty(item.product.id, -1) },
-                                        onRemove = { AppState.removeFromCart(item.product.id) })
-                                    if (i < cart.size - 1) HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = Border)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Payment methods
-                Column {
-                    Text(t.paymentMethod, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                        color = TextSecondary, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 10.dp, start = 2.dp))
-                    Row(Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        PayCard(Icons.Rounded.CreditCard, t.creditCard, payment == "card", Modifier.weight(1f)) { payment = "card" }
-                        PayCard(Icons.Rounded.Money,      t.cash,       payment == "cash", Modifier.weight(1f)) { payment = "cash" }
-                        PayCard(Icons.Rounded.Nfc,        t.tapToPay,   payment == "nfc",  Modifier.weight(1f)) { payment = "nfc" }
+        Column(modifier = Modifier.weight(0.45f).fillMaxSize().background(White).padding(24.dp)) {
+            Text(AppState.t().paymentMethod, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Spacer(Modifier.height(20.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF3F4F6)).padding(4.dp)
+            ) {
+                PaymentTab(Icons.Outlined.CreditCard, AppState.t().creditCard, selectedPayment == PaymentType.CARD) { selectedPayment = PaymentType.CARD }
+                PaymentTab(Icons.Outlined.QrCode, "Kaspi QR", selectedPayment == PaymentType.KASPI) { selectedPayment = PaymentType.KASPI }
+            }
+            Spacer(Modifier.height(20.dp))
+            when (selectedPayment) {
+                PaymentType.KASPI -> KaspiQrSection(total = total, t = AppState.t())
+                PaymentType.CARD -> {
+                    Text("Your saved cards", fontSize = 14.sp, color = TextSecondary)
+                    Spacer(Modifier.height(12.dp))
+                    savedCards.forEach { card ->
+                        SavedCardRow(card = card, isSelected = selectedCard == card.id, onSelect = { selectedCard = card.id })
                     }
                 }
             }
-
-            // ── Right Panel ───────────────────────────────
-            Column(Modifier.width(340.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-
-                // Order Summary card
-                Surface(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), White,
-                    shadowElevation = 1.dp, border = BorderStroke(1.dp, Border)) {
-                    Column(Modifier.padding(24.dp)) {
-                        Text(t.orderSummary, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        HorizontalDivider(Modifier.padding(vertical = 14.dp), color = Border)
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SRow(t.subtotal, subtotal.asTenge())
-                            SRow(t.vat,      vat.asTenge())
-                            SRow(t.memberDiscount, "-${discount.asTenge()}", SuccessGreen, SuccessGreen)
-                        }
-                        HorizontalDivider(Modifier.padding(vertical = 14.dp), color = Border)
-                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.Bottom) {
-                            Text(t.total, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                            Text(total.asTenge(), fontSize = 30.sp, fontWeight = FontWeight.Black, color = TextPrimary)
-                        }
-                    }
-                }
-
-                // Points banner
-                Surface(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp),
-                    PrimaryLight.copy(0.3f), border = BorderStroke(1.dp, Primary.copy(0.2f))) {
-                    Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(Modifier.size(32.dp).background(Primary, CircleShape), Alignment.Center) {
-                            Icon(Icons.Rounded.CheckCircle, null, tint = White, modifier = Modifier.size(18.dp))
-                        }
-                        Text(
-                            text = buildAnnotatedString {
-                                append("You will earn ")
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Primary)) { append("24 points") }
-                                append(" with this purchase.")
-                            },
-                            fontSize = 13.sp, color = PrimaryDark
-                        )
-                    }
-                }
-
-                // Complete Purchase
-                Button(onClick = {
-                    viewModel.completePurchase {
-                        onNavigateToReceipt()
-                    }
-                }, Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    enabled = cart.isNotEmpty()) {
-                    Text(t.completePurchase, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Rounded.ArrowForward, null, modifier = Modifier.size(18.dp))
-                }
-
-                Text(t.terms, fontSize = 11.sp, color = TextMuted, textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.weight(1f))
+            Button(
+                onClick = onNavigateToReceipt,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary)
+            ) {
+                Text("Complete Purchase", color = White, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Rounded.ArrowForward, null, tint = White)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "By completing you agree to our Terms of Service",
+                fontSize = 12.sp,
+                color = TextMuted,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
+            TextButton(onClick = {}, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.SupportAgent, null, tint = Primary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Call Assistant", color = Primary)
             }
         }
     }
 }
 
 @Composable
-private fun CartItemRow(
-    item: CartItem, lang: com.smartcart.data.model.AppLanguage,
-    onInc: () -> Unit, onDec: () -> Unit, onRemove: () -> Unit
-) {
-    val name = item.product.localizedName(lang)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        AsyncImage(model = item.product.imageUrl, contentDescription = name,
-            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Gray100),
-            contentScale = ContentScale.Crop)
-        Column(Modifier.weight(1f)) {
-            Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${item.product.formattedPrice()} / ${item.product.category}",
-                fontSize = 11.sp, color = TextMuted, modifier = Modifier.padding(top = 2.dp))
+private fun CheckoutItemRow(item: CartItem) {
+    val confidence = 90 + (item.product.id.hashCode().absoluteValue % 9)
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        AsyncImage(
+            model = item.product.imageUrl,
+            contentDescription = item.product.nameEn,
+            modifier = Modifier.size(64.dp).clip(RoundedCornerShape(10.dp)),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(item.product.localizedName(AppState.language), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text("Qty: ${item.quantity} × ${item.product.formattedPrice()}", fontSize = 13.sp, color = TextSecondary)
         }
-        // Stepper
-        Surface(shape = RoundedCornerShape(9.dp), color = White, border = BorderStroke(1.dp, Border),
-            shadowElevation = 1.dp) {
-            Row(Modifier.height(36.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(36.dp).fillMaxHeight()
-                    .clip(RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp))
-                    .clickable { onDec() }
-                    .background(Gray50),
-                    contentAlignment = Alignment.Center) {
-                    Text("−", fontSize = 18.sp, color = TextSecondary)
-                }
-                Box(Modifier.width(40.dp).fillMaxHeight().background(Gray50.copy(0.5f)),
-                    contentAlignment = Alignment.Center) {
-                    Text("${item.quantity}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                }
-                Box(Modifier.width(36.dp).fillMaxHeight()
-                    .clip(RoundedCornerShape(topEnd = 9.dp, bottomEnd = 9.dp))
-                    .clickable { onInc() }
-                    .background(Gray50),
-                    contentAlignment = Alignment.Center) {
-                    Text("+", fontSize = 18.sp, color = TextSecondary)
-                }
+        Column(horizontalAlignment = Alignment.End) {
+            Text((item.lineTotal * 130.0).asTenge(), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFECFDF5)).padding(horizontal = 6.dp, vertical = 2.dp)) {
+                Text("AI: $confidence%", fontSize = 11.sp, color = SuccessGreen, fontWeight = FontWeight.Medium)
             }
         }
-        Text(item.product.formattedPrice(), fontSize = 15.sp, fontWeight = FontWeight.Bold,
-            color = TextPrimary, modifier = Modifier.width(70.dp), textAlign = TextAlign.End)
-        Box(Modifier.size(30.dp).clip(CircleShape).clickable { onRemove() }
-            .background(Color.Transparent), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.DeleteOutline, null, tint = TextMuted, modifier = Modifier.size(18.dp))
-        }
     }
+    HorizontalDivider(color = Color(0xFFF3F4F6))
 }
 
 @Composable
-private fun PayCard(icon: ImageVector, label: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Surface(
-        modifier.clickable { onClick() }, RoundedCornerShape(12.dp),
-        color = if (active) PrimaryLight.copy(0.3f) else White,
-        border = BorderStroke(if (active) 2.dp else 1.dp, if (active) Primary else BorderStrong)
+private fun KaspiQrSection(total: Double, t: AppStrings) {
+    val amountTiyn = (total * 100).toInt()
+    val qrContent = "kaspi://pay?amount=$amountTiyn&currency=KZT&ref=smartcart"
+    val qrBitmap = rememberQrBitmap(qrContent)
+    Box(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(White).border(1.dp, Border, RoundedCornerShape(12.dp)).padding(24.dp)
     ) {
-        Box(Modifier.fillMaxSize()) {
-            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(icon, label, tint = if (active) Primary else TextMuted, modifier = Modifier.size(24.dp))
-                Text(label, fontSize = 12.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (active) Primary else TextSecondary)
-            }
-            if (active) {
-                Box(Modifier.size(20.dp).align(Alignment.TopEnd).offset((-8).dp, 8.dp)
-                    .background(Primary, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Check, null, tint = White, modifier = Modifier.size(12.dp))
-                }
-            }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Image(
+                bitmap = qrBitmap,
+                contentDescription = "Kaspi QR",
+                modifier = Modifier.size(200.dp)
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(t.kaspiQrScan, fontSize = 14.sp, color = TextSecondary, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(8.dp))
+            Text("${total.toInt()} ₸", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Primary)
         }
     }
 }
 
 @Composable
-private fun SRow(label: String, value: String,
-    labelColor: Color = TextSecondary, valueColor: Color = TextPrimary) {
-    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-        Text(label, fontSize = 13.sp, color = labelColor)
-        Text(value, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
+private fun RowScope.PaymentTab(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (isSelected) Primary else Color.Transparent).clickable { onClick() }.padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(icon, null, tint = if (isSelected) White else TextSecondary, modifier = Modifier.size(16.dp))
+            Text(label, fontSize = 12.sp, color = if (isSelected) White else TextSecondary)
+        }
     }
 }
 
-private fun Double.asTenge() = "${(this * 130).toInt()}₸"
+@Composable
+private fun SavedCardRow(card: SavedCard, isSelected: Boolean, onSelect: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(12.dp)).border(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) Primary else BorderStrong,
+            shape = RoundedCornerShape(12.dp)
+        ).background(if (isSelected) Color(0xFFF5F3FF) else White).clickable { onSelect() }.padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.CreditCard, null, tint = Primary, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(card.bankName, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text("${card.type} •••• ${card.lastFour}", fontSize = 13.sp, color = TextSecondary)
+            }
+            if (isSelected) Icon(Icons.Rounded.CheckCircle, null, tint = Primary, modifier = Modifier.size(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun PriceRow(label: String, value: String, valueColor: Color = TextPrimary, labelColor: Color = TextSecondary) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = labelColor)
+        Text(value, color = valueColor, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+private fun Double.asTenge(): String = "${toInt()} ₸"
 
 @Preview(showBackground = true, device = "spec:width=1920dp,height=1104dp,dpi=160")
 @Composable
 private fun Preview() {
-    SmartCartTheme {
-        CartScreen(onNavigateToList = {}, onNavigateToReceipt = {})
-    }
+    CartScreen(onNavigateToList = {}, onNavigateToReceipt = {})
 }

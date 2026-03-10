@@ -27,6 +27,7 @@ import com.smartcart.data.model.Product
 import com.smartcart.data.model.ShoppingListItem
 import com.smartcart.data.repository.AppState
 import com.smartcart.ui.components.SharedSidebar
+import com.smartcart.ui.components.SharedTopBar
 import com.smartcart.ui.theme.*
 
 @Composable
@@ -64,6 +65,10 @@ fun ShoppingListScreen(
             )
 
             Column(Modifier.weight(1f).fillMaxHeight()) {
+                SharedTopBar(
+                    searchQuery = "",
+                    onSearchQueryChange = {}
+                )
 
                 // Page header (white, matches React px-8 py-6)
                 Surface(Modifier.fillMaxWidth(), color = White, shadowElevation = 0.dp,
@@ -79,16 +84,11 @@ fun ShoppingListScreen(
                                     fontSize = 12.sp, color = TextSecondary, modifier = Modifier.padding(top = 2.dp))
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                // Search
-                                Surface(Modifier.width(240.dp), RoundedCornerShape(22.dp), Background,
-                                    border = BorderStroke(1.dp, BorderStrong)) {
-                                    Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Icon(Icons.Rounded.Search, null, tint = TextMuted, modifier = Modifier.size(15.dp))
-                                        Text(t.addItemSearch, fontSize = 12.sp, color = TextMuted)
-                                    }
-                                }
+                                Text(
+                                    text = "Список синхронизирован с вашим телефоном.\nТовары добавляются автоматически через AI‑камеру.",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary
+                                )
                                 // User
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Column(horizontalAlignment = Alignment.End) {
@@ -127,8 +127,9 @@ fun ShoppingListScreen(
                                     }
                                 }
                             }
-                            // Add all to cart
-                            Button(onClick = { AppState.moveListToCart(); onNavigateToCart() },
+                            // Add all to cart (оставим как быстрый старт)
+                            Button(
+                                onClick = { AppState.moveListToCart(); onNavigateToCart() },
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = TextPrimary),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
@@ -159,8 +160,8 @@ fun ShoppingListScreen(
                             onAddToCart   = { AppState.addToCart(item.product) },
                             onIncCart     = { AppState.updateCartQty(item.product.id, +1) },
                             onDecCart     = { AppState.updateCartQty(item.product.id, -1) },
-                            onIncPlanned  = { AppState.updateShoppingListPlannedQty(item.product.id, +1) },
-                            onDecPlanned  = { AppState.updateShoppingListPlannedQty(item.product.id, -1) },
+                            onIncPlanned  = {},
+                            onDecPlanned  = {},
                         )
                     }
                 }
@@ -302,30 +303,12 @@ private fun ListItemCard(
                         Text(product.formattedPrice(), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     }
 
-                    Column(horizontalAlignment = Alignment.End) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                Modifier.size(24.dp)
-                                    .border(1.dp, BorderStrong, RoundedCornerShape(topStart = 7.dp, bottomStart = 7.dp))
-                                    .background(Gray100, RoundedCornerShape(topStart = 7.dp, bottomStart = 7.dp))
-                                    .clickable { onDecPlanned() },
-                                contentAlignment = Alignment.Center
-                            ) { Text("−", fontSize = 14.sp, color = TextSecondary, fontWeight = FontWeight.Normal) }
-
-                            Box(
-                                Modifier.width(32.dp).height(24.dp).border(BorderStroke(1.dp, BorderStrong)),
-                                contentAlignment = Alignment.Center
-                            ) { Text("$plannedQty", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary) }
-
-                            Box(
-                                Modifier.size(24.dp)
-                                    .background(Primary, RoundedCornerShape(topEnd = 7.dp, bottomEnd = 7.dp))
-                                    .clickable { onIncPlanned() },
-                                contentAlignment = Alignment.Center
-                            ) { Text("+", fontSize = 14.sp, color = White, fontWeight = FontWeight.Bold) }
-                        }
-
-                        Spacer(Modifier.height(4.dp))
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Planned: $plannedQty",
+                            fontSize = 10.sp,
+                            color = TextSecondary,
+                        )
 
                         if (inCart) {
                             Text(

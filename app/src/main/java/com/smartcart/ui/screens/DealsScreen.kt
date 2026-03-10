@@ -173,8 +173,6 @@ private fun FilterChip(label: String, active: Boolean, onClick: () -> Unit) {
 private fun DealCard(deal: Deal, onAdd: () -> Unit) {
     val lang = AppState.language
     val name = deal.product.localizedName(lang)
-    val quantity = AppState.cartQty(deal.product.id)
-    val inCart = quantity > 0
     val context = LocalContext.current
 
     Surface(
@@ -257,23 +255,14 @@ private fun DealCard(deal: Deal, onAdd: () -> Unit) {
                             color = Primary
                         )
                     }
-                    if (inCart) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFFF3F4F6)).padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { AppState.updateCartQty(deal.product.id, -1) }) {
-                                Icon(Icons.Rounded.Remove, contentDescription = null, tint = Primary)
-                            }
-                            Text("$quantity", fontWeight = FontWeight.Bold, color = TextPrimary)
-                            IconButton(onClick = { AppState.updateCartQty(deal.product.id, 1) }) {
-                                Icon(Icons.Rounded.Add, contentDescription = null, tint = Primary)
-                            }
-                        }
-                    } else {
-                        FloatingActionButton(
-                            onClick = onAdd,
-                            containerColor = AccentOrange,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Rounded.Add, contentDescription = null, tint = White, modifier = Modifier.size(18.dp))
+                            Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Primary))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Auto-detected by AI camera", fontSize = 12.sp, color = TextSecondary)
                         }
                     }
                 }

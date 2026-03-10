@@ -168,10 +168,11 @@ data class AppStrings(
     val sortPriceDown: String,
     val sortNew: String,
     val itemsSuffix: String,
+    val kaspiQrScan: String,
 )
 
 val StringsEN = AppStrings(
-    loginTitle = "Smart Shopping Cart", scanToLogin = "Scan to login",
+    loginTitle = "Smart Cart", scanToLogin = "Scan to login",
     scanInstruction = "Open the Shopgram app on your phone to scan",
     readyToScan = "Ready to scan", scanning = "Scanning...", authenticated = "Authenticated",
     altLogin = "Alternative Login", needHelp = "Need help? Ask a store associate.",
@@ -200,11 +201,12 @@ val StringsEN = AppStrings(
     catsHeader = "Categories",
     wishlistHeader = "Saved", emptyWishlist = "No saved items", goToCatalog = "Go to catalog",
     sortPriceUp = "Price ↑", sortPriceDown = "Price ↓", sortNew = "New",
-    itemsSuffix = " items"  // EN
+    itemsSuffix = " items",
+    kaspiQrScan = "Scan with Kaspi app to pay"
 )
 
 val StringsRU = AppStrings(
-    loginTitle = "Умная Корзина", scanToLogin = "Сканируйте для входа",
+    loginTitle = "Smart Cart", scanToLogin = "Сканируйте для входа",
     scanInstruction = "Откройте приложение Shopgram для сканирования",
     readyToScan = "Готов к сканированию", scanning = "Сканирование...", authenticated = "Аутентифицирован",
     altLogin = "Альтернативный вход", needHelp = "Нужна помощь? Спросите сотрудника.",
@@ -233,11 +235,12 @@ val StringsRU = AppStrings(
     catsHeader = "Категории",
     wishlistHeader = "Избранное", emptyWishlist = "Нет избранных товаров", goToCatalog = "Перейти в каталог",
     sortPriceUp = "По цене ↑", sortPriceDown = "По цене ↓", sortNew = "По новизне",
-    itemsSuffix = " шт"
+    itemsSuffix = " шт",
+    kaspiQrScan = "Отсканируйте в приложении Kaspi для оплаты"
 )
 
 val StringsKK = AppStrings(
-    loginTitle = "Ақылды Себет", scanToLogin = "Кіру үшін сканерлеңіз",
+    loginTitle = "Smart Cart", scanToLogin = "Кіру үшін сканерлеңіз",
     scanInstruction = "Сканерлеу үшін Shopgram қолданбасын ашыңыз",
     readyToScan = "Сканерлеуге дайын", scanning = "Сканерлеу...", authenticated = "Расталды",
     altLogin = "Балама кіру", needHelp = "Көмек керек пе? Қызметкерден сұраңыз.",
@@ -266,7 +269,8 @@ val StringsKK = AppStrings(
     catsHeader = "Санаттар",
     wishlistHeader = "Таңдаулы", emptyWishlist = "Таңдаулы жоқ", goToCatalog = "Каталогқа",
     sortPriceUp = "Баға ↑", sortPriceDown = "Баға ↓", sortNew = "Жаңалық",
-    itemsSuffix = " тауар"
+    itemsSuffix = " тауар",
+    kaspiQrScan = "Kaspi қолданбасымен сканерлеп төлеңіз"
 )
 
 fun AppLanguage.strings() = when (this) {

@@ -3,11 +3,22 @@ package com.smartcart.ui.components
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.List
+import androidx.compose.material.icons.outlined.LocalOffer
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -35,6 +46,7 @@ import coil3.request.crossfade
 import com.smartcart.R
 import com.smartcart.data.repository.AppState
 import com.smartcart.ui.theme.*
+import kotlin.math.absoluteValue
 
 private fun Double.asTenge() = "${(this * 130).toInt()}₸"
 
@@ -45,15 +57,15 @@ fun SharedSidebar(
     onNavigate: (String) -> Unit = {}
 ) {
     val items = listOf(
-        Triple("home",  Icons.Rounded.Home,            stringResource(R.string.nav_home)),
-        Triple("list",  Icons.Rounded.LocalOffer,      stringResource(R.string.nav_deals)),
-        Triple("cats",  Icons.Rounded.GridView,        stringResource(R.string.nav_categories)),
-        Triple("favs",  Icons.Rounded.FavoriteBorder,  stringResource(R.string.nav_favorites)),
+        Triple("home",  Icons.Outlined.Home,        stringResource(R.string.nav_home)),
+        Triple("list",  Icons.Outlined.LocalOffer,  stringResource(R.string.nav_deals)),
+        Triple("cats",  Icons.Outlined.GridView,    stringResource(R.string.nav_categories)),
+        Triple("favs",  Icons.Outlined.Bookmark,    stringResource(R.string.nav_favorites)),
     )
 
     Column(
         modifier = Modifier
-            .width(68.dp)
+            .width(64.dp)
             .fillMaxHeight()
             .background(White)
             .border(BorderStroke(1.dp, Border)),
@@ -62,13 +74,8 @@ fun SharedSidebar(
         Spacer(Modifier.height(16.dp))
 
         // Logo
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .background(Primary, RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.ShoppingCart, null, tint = White, modifier = Modifier.size(20.dp))
+        Box(modifier = Modifier.size(36.dp).background(Primary, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.ShoppingCart, null, tint = White, modifier = Modifier.size(18.dp))
         }
 
         Spacer(Modifier.height(20.dp))
@@ -115,8 +122,9 @@ private fun SideNavItem(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .width(48.dp)
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(if (isActive) PrimaryLight else Color.Transparent),
                 contentAlignment = Alignment.Center
             ) {
@@ -147,7 +155,6 @@ fun SharedTopBar(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
 ) {
-    val t = AppState.t()
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = White, shadowElevation = 1.dp
@@ -155,58 +162,24 @@ fun SharedTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+                .height(64.dp)
+                .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Smart Cart", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-
-            // Search pill (interactive)
-            Surface(
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(22.dp),
-                color = Background,
-                border = BorderStroke(1.dp, BorderStrong)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(Icons.Rounded.Search, null, tint = TextMuted, modifier = Modifier.size(15.dp))
-                    androidx.compose.material3.TextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text(t.searchPlaceholder, fontSize = 12.sp, color = TextMuted) },
-                        singleLine = true,
-                        textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                            cursorColor = Primary
-                        )
-                    )
-                    Icon(Icons.Rounded.Mic, null, tint = TextMuted, modifier = Modifier.size(15.dp))
-                }
-            }
-
+            Text("Smart Cart", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Spacer(Modifier.weight(1f))
             LanguageSwitcher()
 
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Wifi, null, tint = SuccessGreen, modifier = Modifier.size(14.dp))
-                Text("50", fontSize = 10.sp, color = TextSecondary)
-                Icon(Icons.Rounded.BatteryFull, null, tint = TextSecondary, modifier = Modifier.size(14.dp))
-                Text("84%", fontSize = 10.sp, color = TextSecondary)
-            }
-
-            Box {
-                Icon(Icons.Rounded.NotificationsNone, null, tint = TextSecondary, modifier = Modifier.size(22.dp))
-                Box(Modifier.size(6.dp).background(ErrorRed, CircleShape).align(Alignment.TopEnd))
+            Icon(Icons.Outlined.Wifi, null, tint = TextMuted, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Chat, null, tint = TextMuted, modifier = Modifier.size(18.dp))
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .background(Color(0xFFF97316), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("JD", color = White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -222,24 +195,21 @@ fun CartPanel(onCheckout: () -> Unit) {
     val tax = AppState.cartTax
     val discount = AppState.cartDiscount
     val total = (subtotal + tax - discount).coerceAtLeast(0.0)
-    val suggestedProducts = remember(cart) {
-        AppState.products.filterNot { p -> cart.any { it.product.id == p.id } }.take(6)
-    }
+    val suggestedProducts = remember(cart) { AppState.products.filterNot { p -> cart.any { it.product.id == p.id } }.take(3) }
     var showBudgetDialog by remember { mutableStateOf(false) }
     var budgetInput by remember { mutableStateOf(((AppState.budgetTenge ?: 0.0).toInt()).toString()) }
     val budget = AppState.budgetTenge
 
-    Surface(modifier = Modifier.width(300.dp).fillMaxHeight(), color = White, shadowElevation = 4.dp) {
+    Surface(modifier = Modifier.width(280.dp).fillMaxHeight(), color = White, shadowElevation = 0.dp, border = BorderStroke(1.dp, Border)) {
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                 Arrangement.SpaceBetween, Alignment.CenterVertically) {
                 Column {
-                    Text(t.yourCart, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(t.scanItems, fontSize = 10.sp, color = TextMuted)
+                    Text(AppState.t().yourCart, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(AppState.t().scanItems, fontSize = 12.sp, color = TextSecondary)
                 }
-                Surface(shape = RoundedCornerShape(20.dp), color = PrimaryLight) {
-                    Text("${cart.sumOf { it.quantity }}${t.itemsSuffix}", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                        color = PrimaryDark, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                Box(modifier = Modifier.size(28.dp).background(Primary, CircleShape), contentAlignment = Alignment.Center) {
+                    Text("${cart.sumOf { it.quantity }}", color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
             HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
@@ -262,18 +232,19 @@ fun CartPanel(onCheckout: () -> Unit) {
             }
             HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
 
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (cart.isEmpty()) {
+                    item {
                     Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Rounded.ShoppingCartCheckout, null, tint = Color(0xFFDDE1EA), modifier = Modifier.size(48.dp))
                             Spacer(Modifier.height(8.dp))
-                            Text("Cart is empty", fontSize = 13.sp, color = TextMuted)
+                            Text(AppState.t().emptyWishlist, fontSize = 13.sp, color = TextMuted)
                         }
                     }
+                    }
                 } else {
-                    cart.forEach { item ->
+                    items(cart, key = { it.product.id }) { item ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             AsyncImage(
@@ -288,6 +259,12 @@ fun CartPanel(onCheckout: () -> Unit) {
                                 Text(item.product.localizedName(lang), fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text("${item.quantity} × ${item.product.formattedPrice()}", fontSize = 11.sp, color = TextSecondary)
+                                Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFFECFDF5)) {
+                                    Text("AI: ${90 + (item.product.id.hashCode().absoluteValue % 9)}%",
+                                        fontSize = 10.sp,
+                                        color = SuccessGreen,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                }
                             }
                             Text(item.product.formattedPrice(), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                             Box(Modifier.size(22.dp).background(Gray100, CircleShape).clickable { AppState.removeFromCart(item.product.id) },
@@ -299,55 +276,39 @@ fun CartPanel(onCheckout: () -> Unit) {
                 }
             }
             HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.dont_forget), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(suggestedProducts, key = { it.id }) { product ->
-                        Surface(
-                            modifier = Modifier.width(100.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            color = White,
-                            border = BorderStroke(1.dp, Border)
-                        ) {
-                            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(LocalContext.current).data(product.imageUrl).crossfade(true).build(),
-                                    placeholder = painterResource(R.drawable.product_placeholder),
-                                    error = painterResource(R.drawable.product_placeholder),
-                                    contentDescription = product.localizedName(lang),
-                                    modifier = Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(8.dp)).background(Gray100),
-                                    contentScale = ContentScale.Crop
-                                )
-                                Text(
-                                    product.localizedName(lang),
-                                    fontSize = 10.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = TextPrimary
-                                )
-                            }
-                        }
-                    }
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFF5F3FF))
+                    .clickable { }
+                    .padding(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.List, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Your planned list: ${AppState.shoppingList.sumOf { it.plannedQuantity }} items", color = Primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
             }
             HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-            Column(Modifier.background(Background).padding(horizontal = 20.dp, vertical = 14.dp),
+            Column(Modifier.background(Background).padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                CartTRow(t.subtotal, subtotal.asTenge())
-                CartTRow(t.tax, tax.asTenge())
-                CartTRow(t.discounts, "-${discount.asTenge()}", SuccessGreen)
+                CartTRow("Subtotal", subtotal.asTenge())
+                CartTRow("Tax (12%)", (subtotal * 0.12).asTenge())
+                CartTRow("Discount", "-${discount.asTenge()}", SuccessGreen)
                 HorizontalDivider(Modifier.padding(vertical = 4.dp), color = BorderStrong)
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                    Text(t.total, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(total.asTenge(), fontSize = 18.sp, fontWeight = FontWeight.Black, color = TextPrimary)
+                    Text(AppState.t().total, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(total.asTenge(), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 }
             }
             Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Button(onClick = onCheckout, Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
                     enabled = cart.isNotEmpty()) {
-                    Text("${t.checkout} →", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(AppState.t().checkoutNow, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.width(6.dp))
                     Icon(Icons.Rounded.ArrowForward, null, Modifier.size(18.dp))
                 }

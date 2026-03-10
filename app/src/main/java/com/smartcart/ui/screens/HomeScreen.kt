@@ -6,7 +6,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -48,20 +51,9 @@ fun HomeScreen(
     val lang     = AppState.language
     val products = AppState.products
     val cart     = AppState.cart
-    val finalTotal = (AppState.cartTotal + AppState.cartTax - AppState.cartDiscount).coerceAtLeast(0.0)
+    val totalAmount = AppState.cartTotal + AppState.cartTax - AppState.cartDiscount
 
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    val visibleProducts = remember(products, searchQuery, lang) {
-        if (searchQuery.isBlank()) {
-            products.toList()
-        } else {
-            val q = searchQuery.trim().lowercase()
-            products.filter { product ->
-                product.localizedName(lang).lowercase().contains(q) ||
-                    product.category.lowercase().contains(q)
-            }
-        }
-    }
+    val visibleProducts = remember(products, lang) { products.toList() }
 
     Box(Modifier.fillMaxSize().background(Background)) {
 
@@ -79,66 +71,53 @@ fun HomeScreen(
             // Main content
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 SharedTopBar(
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = { searchQuery = it }
+                    searchQuery = "",
+                    onSearchQueryChange = {}
                 )
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp),
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)) {
 
                 // Banner
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth().height(220.dp)
+                        .fillMaxWidth().height(160.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(
-                            Brush.horizontalGradient(listOf(
-                                Primary, Color(0xFFB45AD1), Color(0xFFE05CA0), Color(0xFFF07850)
-                            ))
+                            Brush.horizontalGradient(listOf(BannerStart, BannerEnd))
                         )
                 ) {
                     Column(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
-                            .padding(start = 32.dp).widthIn(max = 400.dp)
+                            .padding(start = 24.dp).widthIn(max = 420.dp)
                     ) {
-                        Surface(shape = RoundedCornerShape(20.dp), color = White.copy(alpha = 0.2f)) {
-                            Text("⚡ ${t.flashSale}", fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        Surface(shape = RoundedCornerShape(100.dp), color = White.copy(alpha = 0.2f)) {
+                            Text(t.flashSale, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                                 color = White, letterSpacing = 0.8.sp,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                         }
-                        Spacer(Modifier.height(10.dp))
-                        Text(t.weeklySavers, fontSize = 34.sp, fontWeight = FontWeight.Black,
-                            color = White, lineHeight = 40.sp)
                         Spacer(Modifier.height(8.dp))
-                        Text(t.bannerSub, fontSize = 13.sp, color = White.copy(alpha = 0.9f), fontWeight = FontWeight.Medium)
-                        Spacer(Modifier.height(16.dp))
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color.Transparent,
-                            border = BorderStroke(1.dp, White),
-                            modifier = Modifier.clickable {}
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(t.shopNow, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = White)
-                                Icon(Icons.Rounded.ArrowForward, null, tint = White, modifier = Modifier.size(14.dp))
-                            }
+                        Text(t.weeklySavers, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = White)
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedButton(onClick = {}, border = BorderStroke(1.5.dp, White), shape = RoundedCornerShape(100.dp)) {
+                            Text(t.shopNow, color = White)
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.Rounded.ArrowForward, null, tint = White, modifier = Modifier.size(14.dp))
                         }
                     }
-                    // Decorative shapes
-                    Box(Modifier.align(Alignment.CenterEnd).padding(end = 40.dp)) {
-                        Box(Modifier.size(120.dp, 150.dp).offset(20.dp, (-10).dp)
-                            .background(White.copy(0.1f), RoundedCornerShape(14.dp))
-                            .border(1.dp, White.copy(0.2f), RoundedCornerShape(14.dp)))
-                        Box(Modifier.size(120.dp, 150.dp).offset(0.dp, 10.dp)
-                            .background(White.copy(0.15f), RoundedCornerShape(14.dp))
-                            .border(1.dp, White.copy(0.3f), RoundedCornerShape(14.dp)),
-                            contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.ShoppingBag, null, tint = White.copy(0.6f), modifier = Modifier.size(40.dp))
-                        }
+                    Box(Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)) {
+                        AsyncImage(
+                            model = "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=200",
+                            contentDescription = null,
+                            modifier = Modifier.size(74.dp).offset(x = (-40).dp, y = (-10).dp).clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        AsyncImage(
+                            model = "https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?w=200",
+                            contentDescription = null,
+                            modifier = Modifier.size(74.dp).offset(x = 0.dp, y = 10.dp).clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Crop
+                        )
                     }
                 }
 
@@ -155,7 +134,7 @@ fun HomeScreen(
                     }
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         items(visibleProducts, key = { it.id }) { product ->
-                            ProductCard(product, onAdd = { AppState.addToCart(product) })
+                            ProductCard(product)
                         }
                     }
                 }
@@ -174,27 +153,74 @@ fun HomeScreen(
             CartPanel(onCheckout = onNavigateToCart)
         }
 
-        CameraDebugPanel(modifier = Modifier.align(Alignment.BottomCenter))
+        if (cart.isNotEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 80.dp, end = 300.dp, bottom = 12.dp),
+                shadowElevation = 10.dp,
+                color = White,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box {
+                        Icon(Icons.Outlined.ShoppingCart, null, tint = Primary, modifier = Modifier.size(24.dp))
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(16.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(ErrorRed),
+                            contentAlignment = Alignment.Center
+                        ) { Text("${cart.sumOf { it.quantity }}", color = White, fontSize = 10.sp) }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(t.autoCart, fontSize = 12.sp, color = TextSecondary)
+                        Text("${cart.sumOf { it.quantity }}${t.itemsSuffix}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(t.total, fontSize = 11.sp, color = TextSecondary)
+                        Text("${(totalAmount * 130).toInt()} ₸", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Button(
+                        onClick = onNavigateToCart,
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(t.checkoutNow, color = White)
+                        Spacer(Modifier.width(6.dp))
+                        Text("→", color = White)
+                    }
+                }
+            }
+        }
+
+        CameraDebugPanel(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 76.dp))
     }
 }
 
 @Composable
-private fun ProductCard(product: Product, onAdd: () -> Unit) {
+private fun ProductCard(product: Product) {
     val lang    = AppState.language
     val name    = product.localizedName(lang)
-    val quantity = AppState.cartQty(product.id)
-    val inCart  = quantity > 0
     val context = LocalContext.current
-    val badge   = when (product.id) { "1" -> Pair("-20%", ErrorRed); "7" -> Pair("BOGO", Primary); else -> null }
+    val inWishlist = AppState.isInWishlist(product.id)
+    val badge   = when (product.id) { "1" -> Pair("20", ErrorRed); "7" -> Pair("15", ErrorRed); else -> null }
 
     Surface(
-        modifier = Modifier.width(220.dp),
+        modifier = Modifier.width(280.dp),
         shape = RoundedCornerShape(16.dp),
         color = White,
         shadowElevation = 2.dp
     ) {
         Column {
-            Box(Modifier.fillMaxWidth().height(150.dp).background(Gray100)) {
+            Box(Modifier.fillMaxWidth().height(180.dp).background(Gray100)) {
                 AsyncImage(
                     model = ImageRequest.Builder(context).data(product.imageUrl).crossfade(true).build(),
                     placeholder = painterResource(R.drawable.product_placeholder),
@@ -205,42 +231,46 @@ private fun ProductCard(product: Product, onAdd: () -> Unit) {
                 )
                 badge?.let { (text, color) ->
                     Surface(modifier = Modifier.padding(10.dp).align(Alignment.TopStart), shape = RoundedCornerShape(6.dp), color = color) {
-                        Text(text, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = White,
+                        Text("-$text%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = White,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp))
                     }
                 }
-                Icon(Icons.Rounded.FavoriteBorder, null, tint = Color(0xFFCBD5E1),
-                    modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(16.dp))
+                IconButton(onClick = { AppState.toggleWishlist(product.id) }, modifier = Modifier.align(Alignment.TopEnd)) {
+                    if (inWishlist) {
+                        Icon(
+                            imageVector = Icons.Rounded.Favorite,
+                            contentDescription = null,
+                            tint = ErrorRed
+                        )
+                    } else {
+                        Icon(Icons.Outlined.FavoriteBorder, contentDescription = null, tint = White)
+                    }
+                }
             }
             Column(Modifier.padding(12.dp)) {
-                Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary,
+                Text(name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${product.category}", fontSize = 11.sp, color = TextMuted, modifier = Modifier.padding(top = 2.dp))
+                Text("${product.unit} • ${product.category}", fontSize = 13.sp, color = TextSecondary, modifier = Modifier.padding(top = 2.dp))
                 Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                    Column {
-                        Text(product.formattedPriceOld(), fontSize = 10.sp, color = Color(0xFFCBD5E1),
-                            style = LocalTextStyle.current.copy(textDecoration = TextDecoration.LineThrough))
-                        Text(product.formattedPrice(), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    }
-                    if (inCart) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { AppState.updateCartQty(product.id, -1) }) {
-                                Icon(Icons.Rounded.Remove, contentDescription = null, tint = Primary)
-                            }
-                            Text("$quantity", fontWeight = FontWeight.Bold, color = TextPrimary)
-                            IconButton(onClick = { AppState.updateCartQty(product.id, 1) }) {
-                                Icon(Icons.Rounded.Add, contentDescription = null, tint = Primary)
-                            }
-                        }
-                    } else {
-                        FloatingActionButton(
-                            onClick = onAdd,
-                            containerColor = AccentOrange,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Rounded.Add, contentDescription = null, tint = White, modifier = Modifier.size(18.dp))
-                        }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = product.formattedPriceOld(),
+                        color = Color(0xFF9CA3AF),
+                        fontSize = 13.sp,
+                        textDecoration = TextDecoration.LineThrough
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(product.formattedPrice(), fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFFF3F4F6)).padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Primary))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Auto-detected by AI camera", fontSize = 12.sp, color = TextSecondary)
                     }
                 }
             }
