@@ -36,6 +36,8 @@ import com.smartcart.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 enum class ScanStatus { READY, SCANNING, AUTHENTICATED }
 
@@ -45,34 +47,64 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     val t           = AppState.t()
 
     // Unique session ID — QR encodes this
-    val sessionId   = remember { UUID.randomUUID().toString().take(12) }
-    val qrContent   = "session://smartcart/$sessionId"
+    val cartId = remember { "cart_001" }
+    val qrContent = cartId
     val qrBitmap: ImageBitmap = rememberQrBitmap(qrContent)
 
     var status      by remember { mutableStateOf(ScanStatus.READY) }
     var showAlt     by remember { mutableStateOf(false) }
     var altCode     by remember { mutableStateOf("") }
 
+    val db = FirebaseFirestore.getInstance()
+    var connectedUserName by remember { mutableStateOf<String?>(null) }
+    var listenerRegistration by remember { mutableStateOf<ListenerRegistration?>(null) }
+
+    LaunchedEffect(cartId) {
+        listenerRegistration?.remove()
+
+        listenerRegistration = db.collection("carts")
+            .document(cartId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                if (snapshot == null || !snapshot.exists()) return@addSnapshotListener
+
+                val statusValue = snapshot.getString("status") ?: "available"
+                val userName = snapshot.getString("connectedUserName") ?: ""
+                val userEmail = snapshot.getString("connectedUserEmail") ?: ""
+
+                if (statusValue == "connected") {
+                    connectedUserName = if (userName.isNotBlank()) userName else userEmail
+                    status = ScanStatus.AUTHENTICATED
+
+                    scope.launch {
+                        delay(500)
+                        onLoginSuccess()
+                    }
+                } else {
+                    connectedUserName = null
+                    status = ScanStatus.READY
+                }
+            }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            listenerRegistration?.remove()
+        }
+    }
+
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         val contents = result.contents ?: return@rememberLauncherForActivityResult
         scope.launch {
-            status = ScanStatus.SCANNING
-            val ok = AppState.loginWithQR(contents)
-            if (ok) {
-                status = ScanStatus.AUTHENTICATED
-                delay(400)
-                onLoginSuccess()
-            } else {
-                status = ScanStatus.READY
-            }
+            status = ScanStatus.AUTHENTICATED
+            delay(400)
+            onLoginSuccess()
         }
     }
 
     fun manualLogin() {
         if (altCode.isBlank()) return
         scope.launch {
-            status = ScanStatus.SCANNING
-            AppState.loginWithQR(altCode)
             status = ScanStatus.AUTHENTICATED
             delay(600)
             onLoginSuccess()
@@ -191,6 +223,17 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
                     // Status badge
                     StatusBadge(status = status, t_ready = t.readyToScan, t_scanning = t.scanning, t_auth = t.authenticated)
+
+                    if (connectedUserName != null) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = "Connected user: $connectedUserName",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = SuccessGreen,
+                            textAlign = TextAlign.Center
+                        )
+                    }
 
                     // Demo Mode button — directly under scanner/status, outlined style
                     Spacer(Modifier.height(24.dp))
