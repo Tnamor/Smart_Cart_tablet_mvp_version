@@ -58,6 +58,7 @@ object AppState {
                 inCartQuantity = newInCartQty
             )
         }
+        CartSyncRepository.syncCartToFirestore("cart_001")
     }
 
     fun removeFromCart(id: String) {
@@ -76,6 +77,7 @@ object AppState {
                 inCartQuantity = newInCartQty
             )
         }
+        CartSyncRepository.syncCartToFirestore("cart_001")
     }
 
     fun updateCartQty(id: String, delta: Int) {
@@ -105,6 +107,7 @@ object AppState {
                 inCartQuantity = newInCartQty
             )
         }
+        CartSyncRepository.syncCartToFirestore("cart_001")
     }
 
     fun moveListToCart() {
@@ -132,6 +135,7 @@ object AppState {
                 inCartQuantity = item.plannedQuantity
             )
         }
+        CartSyncRepository.syncCartToFirestore("cart_001")
     }
 
     fun isInCart(id: String) = cart.any { it.product.id == id }
