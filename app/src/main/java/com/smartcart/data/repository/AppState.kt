@@ -3,11 +3,22 @@ package com.smartcart.data.repository
 import androidx.compose.runtime.*
 import com.google.gson.Gson
 import com.smartcart.data.model.*
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import android.util.Log
+import android.os.Handler
+import android.os.Looper
+import androidx.compose.runtime.mutableIntStateOf
 
 object AppState {
     var language  by mutableStateOf(AppLanguage.RU)
     var currentUser by mutableStateOf<User?>(null)
     var budgetTenge by mutableStateOf<Double?>(null)
+
+    var releaseEvent by mutableIntStateOf(0)
+        private set
+
+    private var cartStatusListener: ListenerRegistration? = null
 
     val products = mutableStateListOf<Product>().apply { addAll(MockData.products) }
     val cart      = mutableStateListOf<CartItem>()
@@ -199,14 +210,67 @@ object AppState {
         shoppingList.clear()
         shoppingList.addAll(MockData.shoppingList)
 
+        startListeningCartStatus()
+
         return true
     }
 
+    fun startListeningCartStatus() {
+        Log.d("CART_DEBUG", "startListeningCartStatus() called")
+
+        stopListeningCartStatus()
+
+        cartStatusListener = FirebaseFirestore.getInstance()
+            .collection("carts")
+            .document("cart_001")
+            .addSnapshotListener { snapshot, error ->
+
+                if (error != null) {
+                    Log.e("CART_DEBUG", "listener error: ${error.message}", error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot == null || !snapshot.exists()) {
+                    Log.d("CART_DEBUG", "snapshot is null or document does not exist")
+                    return@addSnapshotListener
+                }
+
+                val status = snapshot.getString("status")?.trim()?.lowercase()
+                Log.d("CART_DEBUG", "snapshot received, status = $status, data = ${snapshot.data}")
+
+                if (status == "available") {
+                    Log.d("CART_DEBUG", "status became available -> clearing local session")
+
+                    stopListeningCartStatus()
+
+                    Handler(Looper.getMainLooper()).post {
+                        currentUser = null
+                        cart.clear()
+                        shoppingList.clear()
+                        shoppingList.addAll(MockData.shoppingList)
+
+                        releaseEvent++
+                    }
+                }
+            }
+    }
+
+    fun stopListeningCartStatus() {
+        cartStatusListener?.remove()
+        cartStatusListener = null
+    }
+
     fun logout() {
+        Log.d("CART_DEBUG", "logout() called")
+
+        stopListeningCartStatus()
         currentUser = null
         cart.clear()
+
         shoppingList.clear()
         shoppingList.addAll(MockData.shoppingList)
+
+
     }
 
     fun buildCurrentSession(): CartSession? {
@@ -214,7 +278,7 @@ object AppState {
         return CartSession(
             sessionId = user.sessionToken.ifBlank { "local_${System.currentTimeMillis()}" },
             userId = user.id,
-            cartId = "cart_1",
+            cartId = "cart_001",
             items = cart.toList(),
             shoppingList = shoppingList.toList(),
             startTime = System.currentTimeMillis(),

@@ -43,5 +43,18 @@ class SessionCache @Inject constructor(
             val entity = dao.getLastSession() ?: return@withContext null
             runCatching { gson.fromJson(entity.json, CartSession::class.java) }.getOrNull()
         }
+
+
+    fun clearAsync() {
+        scope.launch {
+            dao.clear()
+        }
+    }
+
+    suspend fun clear() {
+        withContext(Dispatchers.IO) {
+            dao.clear()
+        }
+    }
 }
 

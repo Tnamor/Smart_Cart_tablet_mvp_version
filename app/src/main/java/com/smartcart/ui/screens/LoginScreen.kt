@@ -55,6 +55,9 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     var showAlt     by remember { mutableStateOf(false) }
     var altCode     by remember { mutableStateOf("") }
 
+    var didLogin by remember { mutableStateOf(false) }
+
+
     val db = FirebaseFirestore.getInstance()
     var connectedUserName by remember { mutableStateOf<String?>(null) }
     var listenerRegistration by remember { mutableStateOf<ListenerRegistration?>(null) }
@@ -76,13 +79,34 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     connectedUserName = if (userName.isNotBlank()) userName else userEmail
                     status = ScanStatus.AUTHENTICATED
 
-                    scope.launch {
-                        delay(500)
-                        onLoginSuccess()
+                    if (!didLogin) {
+                        didLogin = true
+
+                        scope.launch {
+                            val resolvedName = if (userName.isNotBlank()) userName else userEmail
+                            val resolvedUserId =
+                                snapshot.getString("connectedUserId")
+                                    ?: snapshot.getString("connectedUserEmail")
+                                    ?: "demo_user"
+
+                            val sessionJson = """
+                {
+                  "userId": "$resolvedUserId",
+                  "userName": "$resolvedName",
+                  "sessionToken": "session_${System.currentTimeMillis()}"
+                }
+            """.trimIndent()
+
+                            AppState.loginWithQR(sessionJson)
+
+                            delay(500)
+                            onLoginSuccess()
+                        }
                     }
                 } else {
                     connectedUserName = null
                     status = ScanStatus.READY
+                    didLogin = false
                 }
             }
     }

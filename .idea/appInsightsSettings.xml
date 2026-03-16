@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.smartcart" />
+                  <option name="mobileSdkAppId" value="1:642371715222:android:079d7d802b9b9d348cc2b7" />
+                  <option name="projectId" value="smartcart-95df6" />
+                  <option name="projectNumber" value="642371715222" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

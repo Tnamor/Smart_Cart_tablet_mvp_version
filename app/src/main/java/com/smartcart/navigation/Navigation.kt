@@ -6,11 +6,35 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.smartcart.data.repository.AppState
 import com.smartcart.ui.screens.*
+import androidx.compose.runtime.LaunchedEffect
+import android.util.Log
 
 @Composable
 fun AppNavigation() {
     val nav = rememberNavController()
     val start = "login"
+
+    fun resetToLogin() {
+        Log.d("CART_DEBUG", "resetToLogin() called")
+
+        AppState.logout()
+
+        nav.navigate("login") {
+            popUpTo(0) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
+    LaunchedEffect(AppState.releaseEvent) {
+        if (AppState.releaseEvent > 0) {
+            Log.d("CART_DEBUG", "releaseEvent received -> navigate to login")
+
+            nav.navigate("login") {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     NavHost(nav, startDestination = start) {
         composable("login") {
@@ -72,10 +96,7 @@ fun AppNavigation() {
         }
         composable("receipt") {
             ReceiptScreen(onBackToLogin = {
-                AppState.logout()
-                nav.navigate("login") {
-                    popUpTo(nav.graph.startDestinationId) { inclusive = true }
-                }
+                resetToLogin()
             })
         }
     }

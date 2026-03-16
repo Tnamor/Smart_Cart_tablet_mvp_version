@@ -26,6 +26,7 @@ interface LastSessionDao {
 
     @Query("DELETE FROM last_session")
     suspend fun clear()
+
 }
 
 @Database(
