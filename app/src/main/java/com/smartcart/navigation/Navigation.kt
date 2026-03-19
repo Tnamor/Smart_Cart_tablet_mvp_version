@@ -91,13 +91,19 @@ fun AppNavigation() {
         composable("cart") {
             CartScreen(
                 onNavigateToList = { nav.navigate("list") },
-                onNavigateToReceipt = { nav.navigate("receipt") }
+                onNavigateToReceipt = { receiptId ->
+                    nav.navigate("receipt/$receiptId") }
             )
         }
-        composable("receipt") {
-            ReceiptScreen(onBackToLogin = {
-                resetToLogin()
-            })
+        composable("receipt/{receiptId}") { backStackEntry ->
+            val receiptId = backStackEntry.arguments?.getString("receiptId") ?: ""
+
+            ReceiptScreen(
+                receiptId = receiptId,
+                onBack = {
+                    resetToLogin()
+                }
+            )
         }
     }
 }

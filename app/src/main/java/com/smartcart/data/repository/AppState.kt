@@ -190,29 +190,66 @@ object AppState {
             null
         }
 
-        currentUser = if (payload != null) {
-            User(
-                id = payload.userId,
-                name = payload.userName,
-                email = "${payload.userId}@snappan.app",
-                sessionToken = payload.sessionToken,
-            )
+        if (payload != null) {
+            return kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+                FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(payload.userId)
+                    .get()
+                    .addOnSuccessListener { document ->
+                        val realEmail = document.getString("email") ?: ""
+                        val realName = document.getString("name")
+                            ?: document.getString("userName")
+                            ?: payload.userName
+
+                        currentUser = User(
+                            id = payload.userId,
+                            name = realName,
+                            email = realEmail,
+                            sessionToken = payload.sessionToken,
+                        )
+
+                        cart.clear()
+                        shoppingList.clear()
+                        shoppingList.addAll(MockData.shoppingList)
+
+                        startListeningCartStatus()
+
+                        if (cont.isActive) cont.resume(true) {}
+                    }
+                    .addOnFailureListener {
+                        currentUser = User(
+                            id = payload.userId,
+                            name = payload.userName,
+                            email = "",
+                            sessionToken = payload.sessionToken,
+                        )
+
+                        cart.clear()
+                        shoppingList.clear()
+                        shoppingList.addAll(MockData.shoppingList)
+
+                        startListeningCartStatus()
+
+                        if (cont.isActive) cont.resume(true) {}
+                    }
+            }
         } else {
-            User(
+            currentUser = User(
                 id = "demo_user",
                 name = "Demo User",
                 email = "demo@snappan.app",
                 sessionToken = sessionCode,
             )
+
+            cart.clear()
+            shoppingList.clear()
+            shoppingList.addAll(MockData.shoppingList)
+
+            startListeningCartStatus()
+
+            return true
         }
-
-        cart.clear()
-        shoppingList.clear()
-        shoppingList.addAll(MockData.shoppingList)
-
-        startListeningCartStatus()
-
-        return true
     }
 
     fun startListeningCartStatus() {
@@ -239,12 +276,11 @@ object AppState {
                 Log.d("CART_DEBUG", "snapshot received, status = $status, data = ${snapshot.data}")
 
                 if (status == "available") {
-                    Log.d("CART_DEBUG", "status became available -> clearing local session")
+                    Log.d("CART_DEBUG", "status became available -> stop listening cart only")
 
                     stopListeningCartStatus()
 
                     Handler(Looper.getMainLooper()).post {
-                        currentUser = null
                         cart.clear()
                         shoppingList.clear()
                         shoppingList.addAll(MockData.shoppingList)
@@ -290,7 +326,7 @@ object AppState {
         val restoredUser = User(
             id = session.userId,
             name = session.userName.ifBlank { currentUser?.name ?: "Previous shopper" },
-            email = currentUser?.email ?: "${session.userId}@snappan.app",
+            email = currentUser?.email ?: "",
             sessionToken = session.sessionId,
         )
         currentUser = restoredUser
