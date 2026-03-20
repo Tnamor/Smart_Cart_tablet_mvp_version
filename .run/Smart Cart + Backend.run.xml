@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Smart Cart + Backend" type="CompoundRunConfigurationType">
+    <toRun name="Backend" type="GradleRunConfiguration" />
+    <toRun name="app" type="AndroidRunConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>
