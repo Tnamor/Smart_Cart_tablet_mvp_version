@@ -2,23 +2,23 @@ package com.smartcart.data.repository
 
 import androidx.compose.runtime.*
 import com.google.gson.Gson
+import com.smartcart.data.api.*
 import com.smartcart.data.model.*
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import android.util.Log
-import android.os.Handler
-import android.os.Looper
-import androidx.compose.runtime.mutableIntStateOf
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.SupervisorJob
+import javax.inject.Provider
 
 object AppState {
+    private var cartIdStore: CartIdStore? = null
+    private var sessionCacheProvider: Provider<SessionCache>? = null
+    private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     var language  by mutableStateOf(AppLanguage.RU)
     var currentUser by mutableStateOf<User?>(null)
     var budgetTenge by mutableStateOf<Double?>(null)
-
-    var releaseEvent by mutableIntStateOf(0)
-        private set
-
-    private var cartStatusListener: ListenerRegistration? = null
 
     val products = mutableStateListOf<Product>().apply { addAll(MockData.products) }
     val cart      = mutableStateListOf<CartItem>()
@@ -27,9 +27,11 @@ object AppState {
     }
     var wishlistIds by mutableStateOf(MockData.products.take(5).map { it.id }.toSet())
 
+    val isLoggedIn: Boolean get() = currentUser != null
+
     // Computed
     val cartTotal    get() = cart.sumOf { it.product.price * it.quantity }
-    val cartTax      get() = cartTotal * 0.08
+    val cartTax      get() = cartTotal * 0.12
     val cartVat      get() = cartTotal * 0.12
     val cartDiscount get() = 2.0  // fixed for demo
     val cartFinal    get() = (cartTotal + cartTax - cartDiscount).coerceAtLeast(0.0)
@@ -39,6 +41,24 @@ object AppState {
     val listCount    get() = shoppingList.sumOf { it.plannedQuantity }
 
     fun t() = language.strings()
+
+    fun initStores(
+        cartIdStore: CartIdStore,
+        sessionCacheProvider: Provider<SessionCache>,
+    ) {
+        this.cartIdStore = cartIdStore
+        this.sessionCacheProvider = sessionCacheProvider
+    }
+
+    fun cartId(): String = cartIdStore?.getCartId() ?: "cart_001"
+
+    fun isProductAvailable(productId: String): Boolean = true // Mocked availability
+
+    fun cartStatusText(product: Product): String {
+        val inCart = isInCart(product.id)
+        val t = t()
+        return if (inCart) t.inCartDetected else t.willBeAddedByCamera
+    }
 
     fun addToCart(product: Product, addedByCamera: Boolean = false, addedManually: Boolean = true) {
         val i = cart.indexOfFirst { it.product.id == product.id }
@@ -69,7 +89,7 @@ object AppState {
                 inCartQuantity = newInCartQty
             )
         }
-        CartSyncRepository.syncCartToFirestore("cart_001")
+        CartSyncRepository.syncCartToFirestore(cartId())
     }
 
     fun removeFromCart(id: String) {
@@ -88,7 +108,7 @@ object AppState {
                 inCartQuantity = newInCartQty
             )
         }
-        CartSyncRepository.syncCartToFirestore("cart_001")
+        CartSyncRepository.syncCartToFirestore(cartId())
     }
 
     fun updateCartQty(id: String, delta: Int) {
@@ -118,7 +138,7 @@ object AppState {
                 inCartQuantity = newInCartQty
             )
         }
-        CartSyncRepository.syncCartToFirestore("cart_001")
+        CartSyncRepository.syncCartToFirestore(cartId())
     }
 
     fun moveListToCart() {
@@ -146,7 +166,7 @@ object AppState {
                 inCartQuantity = item.plannedQuantity
             )
         }
-        CartSyncRepository.syncCartToFirestore("cart_001")
+        CartSyncRepository.syncCartToFirestore(cartId())
     }
 
     fun isInCart(id: String) = cart.any { it.product.id == id }
@@ -158,155 +178,9 @@ object AppState {
         wishlistIds = if (current.contains(id)) current - id else current + id
     }
 
-    fun updateShoppingListPlannedQty(id: String, delta: Int) {
-        val index = shoppingList.indexOfFirst { it.product.id == id }
-        if (index < 0) return
-        val item = shoppingList[index]
-        val newPlanned = (item.plannedQuantity + delta).coerceAtLeast(0)
-        if (newPlanned == 0) {
-            shoppingList.removeAt(index)
-        } else {
-            val newInCart = item.inCartQuantity.coerceAtMost(newPlanned)
-            shoppingList[index] = item.copy(
-                plannedQuantity = newPlanned,
-                inCartQuantity = newInCart,
-                isInCart = newInCart > 0
-            )
-        }
-    }
-
-    private val gson = Gson()
-
-    suspend fun loginWithQR(sessionCode: String): Boolean {
-        kotlinx.coroutines.delay(300)
-
-        val payload: QrSessionPayload? = try {
-            if (sessionCode.trim().startsWith("{")) {
-                gson.fromJson(sessionCode, QrSessionPayload::class.java)
-            } else {
-                null
-            }
-        } catch (_: Exception) {
-            null
-        }
-
-        if (payload != null) {
-            return kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-                FirebaseFirestore.getInstance()
-                    .collection("users")
-                    .document(payload.userId)
-                    .get()
-                    .addOnSuccessListener { document ->
-                        val realEmail = document.getString("email") ?: ""
-                        val realName = document.getString("name")
-                            ?: document.getString("userName")
-                            ?: payload.userName
-
-                        currentUser = User(
-                            id = payload.userId,
-                            name = realName,
-                            email = realEmail,
-                            sessionToken = payload.sessionToken,
-                        )
-
-                        cart.clear()
-                        shoppingList.clear()
-                        shoppingList.addAll(MockData.shoppingList)
-
-                        startListeningCartStatus()
-
-                        if (cont.isActive) cont.resume(true) {}
-                    }
-                    .addOnFailureListener {
-                        currentUser = User(
-                            id = payload.userId,
-                            name = payload.userName,
-                            email = "",
-                            sessionToken = payload.sessionToken,
-                        )
-
-                        cart.clear()
-                        shoppingList.clear()
-                        shoppingList.addAll(MockData.shoppingList)
-
-                        startListeningCartStatus()
-
-                        if (cont.isActive) cont.resume(true) {}
-                    }
-            }
-        } else {
-            currentUser = User(
-                id = "demo_user",
-                name = "Demo User",
-                email = "demo@snappan.app",
-                sessionToken = sessionCode,
-            )
-
-            cart.clear()
-            shoppingList.clear()
-            shoppingList.addAll(MockData.shoppingList)
-
-            startListeningCartStatus()
-
-            return true
-        }
-    }
-
-    fun startListeningCartStatus() {
-        Log.d("CART_DEBUG", "startListeningCartStatus() called")
-
-        stopListeningCartStatus()
-
-        cartStatusListener = FirebaseFirestore.getInstance()
-            .collection("carts")
-            .document("cart_001")
-            .addSnapshotListener { snapshot, error ->
-
-                if (error != null) {
-                    Log.e("CART_DEBUG", "listener error: ${error.message}", error)
-                    return@addSnapshotListener
-                }
-
-                if (snapshot == null || !snapshot.exists()) {
-                    Log.d("CART_DEBUG", "snapshot is null or document does not exist")
-                    return@addSnapshotListener
-                }
-
-                val status = snapshot.getString("status")?.trim()?.lowercase()
-                Log.d("CART_DEBUG", "snapshot received, status = $status, data = ${snapshot.data}")
-
-                if (status == "available") {
-                    Log.d("CART_DEBUG", "status became available -> stop listening cart only")
-
-                    stopListeningCartStatus()
-
-                    Handler(Looper.getMainLooper()).post {
-                        cart.clear()
-                        shoppingList.clear()
-                        shoppingList.addAll(MockData.shoppingList)
-
-                        releaseEvent++
-                    }
-                }
-            }
-    }
-
-    fun stopListeningCartStatus() {
-        cartStatusListener?.remove()
-        cartStatusListener = null
-    }
-
     fun logout() {
-        Log.d("CART_DEBUG", "logout() called")
-
-        stopListeningCartStatus()
         currentUser = null
-        cart.clear()
-
-        shoppingList.clear()
-        shoppingList.addAll(MockData.shoppingList)
-
-
+        CartSyncRepository.setCartSessionAvailable(cartId())
     }
 
     fun buildCurrentSession(): CartSession? {
@@ -314,7 +188,7 @@ object AppState {
         return CartSession(
             sessionId = user.sessionToken.ifBlank { "local_${System.currentTimeMillis()}" },
             userId = user.id,
-            cartId = "cart_001",
+            cartId = cartId(),
             items = cart.toList(),
             shoppingList = shoppingList.toList(),
             startTime = System.currentTimeMillis(),
@@ -326,14 +200,12 @@ object AppState {
         val restoredUser = User(
             id = session.userId,
             name = session.userName.ifBlank { currentUser?.name ?: "Previous shopper" },
-            email = currentUser?.email ?: "",
+            email = currentUser?.email ?: "${session.userId}@snappan.app",
             sessionToken = session.sessionId,
         )
         currentUser = restoredUser
-
         cart.clear()
         cart.addAll(session.items)
-
         shoppingList.clear()
         shoppingList.addAll(session.shoppingList)
     }

@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +49,7 @@ import com.smartcart.data.repository.AppState
 import com.smartcart.ui.components.CartPanel
 import com.smartcart.ui.components.SharedSidebar
 import com.smartcart.ui.components.SharedTopBar
+import com.smartcart.ui.components.StoreMapOverlayDialog
 import com.smartcart.ui.theme.*
 
 @Composable
@@ -55,6 +57,7 @@ fun CategoriesScreen(
     onNavigateHome: () -> Unit,
     onNavigateToList: () -> Unit,
     onNavigateWishlist: () -> Unit,
+    onNavigateSupport: () -> Unit = {},
     onNavigateToCart: () -> Unit,
 ) {
     val t = AppState.t()
@@ -62,6 +65,7 @@ fun CategoriesScreen(
     val categories = MockData.categories
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<CategoryItem?>(null) }
+    var tappedProductForStoreMap by rememberSaveable { mutableStateOf<Product?>(null) }
 
     val categoryToProductCategories = mapOf(
         "produce" to listOf("Fruits", "Vegetables", "Produce"),
@@ -96,6 +100,7 @@ fun CategoriesScreen(
                     "home" -> onNavigateHome()
                     "list" -> onNavigateToList()
                     "favs" -> onNavigateWishlist()
+                    "support" -> onNavigateSupport()
                 }
             }
         )
@@ -138,7 +143,8 @@ fun CategoriesScreen(
                         items(filteredProducts) { product ->
                             CategoryProductCard(
                                 product = product,
-                                onAdd = { AppState.addToCart(product) }
+                                onAdd = { AppState.addToCart(product) },
+                                onProductTap = { tappedProductForStoreMap = product }
                             )
                         }
                     }
@@ -161,6 +167,10 @@ fun CategoriesScreen(
             }
         }
         CartPanel(onCheckout = onNavigateToCart)
+
+        tappedProductForStoreMap?.let { product ->
+            StoreMapOverlayDialog(product = product, onDismiss = { tappedProductForStoreMap = null })
+        }
     }
 }
 
@@ -208,13 +218,13 @@ private fun CategoryCard(
 }
 
 @Composable
-private fun CategoryProductCard(product: Product, onAdd: () -> Unit) {
+private fun CategoryProductCard(product: Product, onAdd: () -> Unit, onProductTap: () -> Unit) {
     val lang = AppState.language
     val name = product.localizedName(lang)
     val context = LocalContext.current
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onProductTap() },
         shape = RoundedCornerShape(12.dp),
         color = White,
         shadowElevation = 2.dp

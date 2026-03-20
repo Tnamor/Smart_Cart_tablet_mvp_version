@@ -55,9 +55,6 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     var showAlt     by remember { mutableStateOf(false) }
     var altCode     by remember { mutableStateOf("") }
 
-    var didLogin by remember { mutableStateOf(false) }
-
-
     val db = FirebaseFirestore.getInstance()
     var connectedUserName by remember { mutableStateOf<String?>(null) }
     var listenerRegistration by remember { mutableStateOf<ListenerRegistration?>(null) }
@@ -78,35 +75,20 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 if (statusValue == "connected") {
                     connectedUserName = if (userName.isNotBlank()) userName else userEmail
                     status = ScanStatus.AUTHENTICATED
-
-                    if (!didLogin) {
-                        didLogin = true
-
-                        scope.launch {
-                            val resolvedName = if (userName.isNotBlank()) userName else userEmail
-                            val resolvedUserId =
-                                snapshot.getString("connectedUserId")
-                                    ?: snapshot.getString("connectedUserEmail")
-                                    ?: "demo_user"
-
-                            val sessionJson = """
-                {
-                  "userId": "$resolvedUserId",
-                  "userName": "$resolvedName",
-                  "sessionToken": "session_${System.currentTimeMillis()}"
-                }
-            """.trimIndent()
-
-                            AppState.loginWithQR(sessionJson)
-
-                            delay(500)
-                            onLoginSuccess()
-                        }
+                    
+                    // Automatically log in if connected via phone
+                    AppState.currentUser = User(
+                        id = snapshot.getString("connectedUserId") ?: "user_remote",
+                        name = connectedUserName ?: "User",
+                        email = userEmail
+                    )
+                    scope.launch {
+                        delay(500)
+                        onLoginSuccess()
                     }
                 } else {
                     connectedUserName = null
                     status = ScanStatus.READY
-                    didLogin = false
                 }
             }
     }
@@ -122,6 +104,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         scope.launch {
             status = ScanStatus.AUTHENTICATED
             delay(400)
+            AppState.currentUser = User(id = "user_scanned", name = "Anna K.", email = "anna@example.com")
             onLoginSuccess()
         }
     }
@@ -131,6 +114,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         scope.launch {
             status = ScanStatus.AUTHENTICATED
             delay(600)
+            AppState.currentUser = User(id = "user_manual", name = "Manual User", email = "manual@example.com")
             onLoginSuccess()
         }
     }
@@ -246,17 +230,32 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     Spacer(Modifier.height(24.dp))
 
                     // Status badge
-                    StatusBadge(status = status, t_ready = t.readyToScan, t_scanning = t.scanning, t_auth = t.authenticated)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        StatusBadge(
+                            status = status,
+                            t_ready = t.readyToScan,
+                            t_scanning = t.scanning,
+                            t_auth = t.authenticated
+                        )
+                    }
 
                     if (connectedUserName != null) {
                         Spacer(Modifier.height(12.dp))
-                        Text(
-                            text = "Connected user: $connectedUserName",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = SuccessGreen,
-                            textAlign = TextAlign.Center
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "${t.authenticated}: $connectedUserName",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = SuccessGreen,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
 
                     // Demo Mode button — directly under scanner/status, outlined style
@@ -270,7 +269,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     ) {
                         Icon(Icons.Rounded.PlayArrow, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Демо режим / Demo Mode", fontWeight = FontWeight.Medium)
+                        Text(t.demoMode, fontWeight = FontWeight.Medium)
                     }
 
                     // Divider and Alternative Login exactly as in reference design
@@ -391,9 +390,11 @@ private fun StatusBadge(
                 ScanStatus.READY -> Box(Modifier.size(8.dp).background(PrimaryDark, CircleShape))
                 ScanStatus.SCANNING -> Box(Modifier.size(8.dp).background(AccentOrange.copy(alpha = alpha), CircleShape))
                 ScanStatus.AUTHENTICATED -> Box(
-                    modifier = Modifier.size(16.dp).background(SuccessGreen, CircleShape),
+                    modifier = Modifier.size(20.dp).background(SuccessGreen, CircleShape),
                     contentAlignment = Alignment.Center
-                ) { Text("✓", fontSize = 9.sp, color = White, fontWeight = FontWeight.Bold) }
+                ) {
+                    Icon(Icons.Rounded.Check, contentDescription = null, tint = White, modifier = Modifier.size(12.dp))
+                }
             }
             Text(
                 text = when (status) {

@@ -1,54 +1,73 @@
 package com.smartcart.ui.components
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.unit.sp
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.smartcart.BuildConfig
 import com.smartcart.data.repository.AppState
-import com.smartcart.presentation.camera.CameraSimulationViewModel
-import com.smartcart.ui.theme.Background
-import com.smartcart.ui.theme.Primary
-import com.smartcart.ui.theme.White
+import com.smartcart.ui.theme.*
+import kotlin.math.roundToInt
 
 @Composable
-fun CameraDebugPanel(
-    modifier: Modifier = Modifier,
-    viewModel: CameraSimulationViewModel = hiltViewModel(),
-) {
+fun CameraDebugPanel(modifier: Modifier = Modifier) {
     if (!BuildConfig.DEBUG) return
 
-    var isVisible by rememberSaveable { mutableStateOf(true) }
-    if (!isVisible) return
+    var eventMessage by remember { mutableStateOf<String?>(null) }
+    var offsetX by remember { mutableStateOf(0f) }
+    var offsetY by remember { mutableStateOf(0f) }
 
-    val event by viewModel.lastEvent.collectAsState()
+    val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+        if (result.contents != null) {
+            val barcode = result.contents
+            val product = AppState.products.find { it.barcode == barcode }
+            if (product != null) {
+                AppState.addToCart(product, addedByCamera = true, addedManually = false)
+                eventMessage = "✅ Scanned: ${product.nameEn}"
+            } else {
+                eventMessage = "⚠️ Not found: $barcode"
+            }
+        }
+    }
 
     Surface(
         modifier = modifier
-            .fillMaxWidth()
-            .background(Background.copy(alpha = 0.9f)),
-        color = White,
-        shadowElevation = 8.dp
+            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+            .pointerInput(Unit) {
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    offsetX += dragAmount.x
+                    offsetY += dragAmount.y
+                }
+            }
+            .width(280.dp)
+            .padding(8.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.Black.copy(alpha = 0.9f),
+        shadowElevation = 12.dp
     ) {
         Column(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -56,59 +75,82 @@ fun CameraDebugPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Simulate cart camera",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Primary
+                    text = "DEBUG ONLY",
+                    color = AccentOrange,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "DEBUG ONLY",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
+                Text(
+                    text = "Panel (Drag to move)",
+                    color = White.copy(alpha = 0.5f),
+                    fontSize = 10.sp
+                )
+            }
+
+            // Real Camera Access
+            Button(
+                onClick = {
+                    scanLauncher.launch(
+                        ScanOptions()
+                            .setPrompt("Scan product barcode")
+                            .setBeepEnabled(true)
+                            .setOrientationLocked(false)
                     )
-                    TextButton(onClick = { isVisible = false }) {
-                        Text("Скрыть", style = MaterialTheme.typography.labelSmall)
+                },
+                modifier = Modifier.fillMaxWidth().height(40.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Icon(Icons.Rounded.CameraAlt, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Open Real Camera", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Divider(color = White.copy(alpha = 0.1f))
+
+            Text(
+                "Or Simulate detection:",
+                color = White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 140.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(AppState.products, key = { it.id }) { product ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                AppState.addToCart(product, addedByCamera = true, addedManually = false)
+                                eventMessage = "Simulated: ${product.nameEn}"
+                            },
+                        color = White.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = product.nameEn,
+                            color = White,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
                     }
                 }
             }
 
-            event?.let {
+            eventMessage?.let {
                 Text(
-                    text = it.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = it,
+                    color = SuccessGreen,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
                 )
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                val products = AppState.products
-                products.forEach { product ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "${product.nameRu} (${product.barcode})",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Button(
-                                onClick = { viewModel.simulateProductAdded(product.barcode) }
-                            ) {
-                                Text("+1")
-                            }
-                            Button(
-                                onClick = { viewModel.simulateProductRemoved(product.barcode) }
-                            ) {
-                                Text("-1")
-                            }
-                        }
-                    }
+                LaunchedEffect(it) {
+                    kotlinx.coroutines.delay(2000)
+                    eventMessage = null
                 }
             }
         }

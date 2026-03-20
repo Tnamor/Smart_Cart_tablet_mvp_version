@@ -58,4 +58,16 @@ object CartSyncRepository {
                 onError(e.message ?: "Failed to clear cart")
             }
     }
+
+    fun setCartSessionAvailable(cartId: String) {
+        db.collection("carts").document(cartId)
+            .update(mapOf(
+                "status" to "available",
+                "connectedUserId" to "",
+                "connectedUserName" to "",
+                "connectedUserEmail" to "",
+                "items" to emptyList<Any>(),
+                "totalAmount" to 0
+            ))
+    }
 }

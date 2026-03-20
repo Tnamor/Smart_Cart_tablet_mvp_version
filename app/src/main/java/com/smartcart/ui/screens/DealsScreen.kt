@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,10 +33,12 @@ import coil3.request.crossfade
 import com.smartcart.R
 import com.smartcart.data.model.Deal
 import com.smartcart.data.model.MockData
+import com.smartcart.data.model.Product
 import com.smartcart.data.repository.AppState
 import com.smartcart.ui.components.CartPanel
 import com.smartcart.ui.components.SharedSidebar
 import com.smartcart.ui.components.SharedTopBar
+import com.smartcart.ui.components.StoreMapOverlayDialog
 import com.smartcart.ui.theme.*
 
 @Composable
@@ -44,6 +47,7 @@ fun DealsScreen(
     onNavigateToList: () -> Unit,
     onNavigateCats: () -> Unit,
     onNavigateWishlist: () -> Unit,
+    onNavigateSupport: () -> Unit = {},
     onNavigateToCart: () -> Unit,
 ) {
     val t = AppState.t()
@@ -51,6 +55,7 @@ fun DealsScreen(
     val deals = MockData.deals
     var searchQuery by remember { mutableStateOf("") }
     var activeFilter by remember { mutableStateOf("all") }
+    var tappedProductForStoreMap by rememberSaveable { mutableStateOf<Product?>(null) }
 
     val filteredDeals = remember(deals, activeFilter, searchQuery) {
         var list = deals
@@ -88,6 +93,7 @@ fun DealsScreen(
                     "list" -> onNavigateToList()
                     "cats" -> onNavigateCats()
                     "favs" -> onNavigateWishlist()
+                    "support" -> onNavigateSupport()
                 }
             }
         )
@@ -131,7 +137,7 @@ fun DealsScreen(
                         )
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             items(expiringDeals) { deal ->
-                                DealCard(deal = deal, onAdd = { AppState.addToCart(deal.product) })
+                                DealCard(deal = deal, onAdd = { AppState.addToCart(deal.product) }, onProductTap = { tappedProductForStoreMap = deal.product })
                             }
                         }
                     }
@@ -142,12 +148,16 @@ fun DealsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(if (expiringDeals.isEmpty()) filteredDeals else regularDeals) { deal ->
-                        DealCard(deal = deal, onAdd = { AppState.addToCart(deal.product) })
+                        DealCard(deal = deal, onAdd = { AppState.addToCart(deal.product) }, onProductTap = { tappedProductForStoreMap = deal.product })
                     }
                 }
             }
         }
         CartPanel(onCheckout = onNavigateToCart)
+
+        tappedProductForStoreMap?.let { product ->
+            StoreMapOverlayDialog(product = product, onDismiss = { tappedProductForStoreMap = null })
+        }
     }
 }
 
@@ -170,13 +180,13 @@ private fun FilterChip(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DealCard(deal: Deal, onAdd: () -> Unit) {
+private fun DealCard(deal: Deal, onAdd: () -> Unit, onProductTap: () -> Unit) {
     val lang = AppState.language
     val name = deal.product.localizedName(lang)
     val context = LocalContext.current
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onProductTap() },
         shape = RoundedCornerShape(12.dp),
         color = White,
         shadowElevation = 2.dp

@@ -1,18 +1,9 @@
 package com.smartcart.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -20,14 +11,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +39,7 @@ import com.smartcart.data.repository.AppState
 import com.smartcart.ui.components.CartPanel
 import com.smartcart.ui.components.SharedSidebar
 import com.smartcart.ui.components.SharedTopBar
+import com.smartcart.ui.components.StoreMapOverlayDialog
 import com.smartcart.ui.theme.*
 
 @Composable
@@ -56,28 +47,23 @@ fun WishlistScreen(
     onNavigateHome: () -> Unit,
     onNavigateToList: () -> Unit,
     onNavigateCats: () -> Unit,
+    onNavigateSupport: () -> Unit = {},
     onNavigateToCart: () -> Unit,
 ) {
     val t = AppState.t()
     val lang = AppState.language
     var searchQuery by remember { mutableStateOf("") }
-    var sortBy by remember { mutableStateOf("price_up") }
+    var tappedProductForStoreMap by rememberSaveable { mutableStateOf<Product?>(null) }
 
     val wishlistProducts = remember(AppState.wishlistIds, AppState.products) {
         AppState.products.filter { AppState.isInWishlist(it.id) }
     }
-    val sortedProducts = remember(wishlistProducts, sortBy) {
-        when (sortBy) {
-            "price_down" -> wishlistProducts.sortedByDescending { it.price }
-            "new" -> wishlistProducts.sortedByDescending { it.isNew }
-            else -> wishlistProducts.sortedBy { it.price }
-        }
-    }
-    val filteredProducts = remember(sortedProducts, searchQuery) {
-        if (searchQuery.isBlank()) sortedProducts
+    
+    val filteredProducts = remember(wishlistProducts, searchQuery) {
+        if (searchQuery.isBlank()) wishlistProducts
         else {
             val q = searchQuery.trim().lowercase()
-            sortedProducts.filter {
+            wishlistProducts.filter {
                 it.localizedName(lang).lowercase().contains(q) ||
                     it.category.lowercase().contains(q)
             }
@@ -92,13 +78,14 @@ fun WishlistScreen(
                     "home" -> onNavigateHome()
                     "list" -> onNavigateToList()
                     "cats" -> onNavigateCats()
+                    "support" -> onNavigateSupport()
                 }
             }
         )
         Column(Modifier.weight(1f).fillMaxSize()) {
             SharedTopBar(searchQuery = searchQuery, onSearchQueryChange = { searchQuery = it })
             Column(
-                Modifier.weight(1f).padding(24.dp),
+                Modifier.weight(1f).padding(32.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 Row(
@@ -106,93 +93,45 @@ fun WishlistScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "❤️ ${t.wishlistHeader}",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    if (filteredProducts.isNotEmpty()) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(
-                                "price_up" to t.sortPriceUp,
-                                "price_down" to t.sortPriceDown,
-                                "new" to t.sortNew,
-                            ).forEach { (id, label) ->
-                                Surface(
-                                    modifier = Modifier.clickable { sortBy = id },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = if (sortBy == id) PrimaryLight else White,
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        if (sortBy == id) Primary else BorderStrong
-                                    )
-                                ) {
-                                    Text(
-                                        label,
-                                        fontSize = 12.sp,
-                                        fontWeight = if (sortBy == id) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (sortBy == id) Primary else TextSecondary,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                                    )
-                                }
-                            }
-                            Button(
-                                onClick = {
-                                    filteredProducts.forEach { AppState.addToCart(it) }
-                                    onNavigateToCart()
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Primary)
-                            ) {
-                                Text(t.addAllToCart, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                    Column {
+                        Text(
+                            t.wishlistHeader,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TextPrimary
+                        )
+                        Text(
+                            t.wishlistHint,
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
                     }
                 }
+
                 if (filteredProducts.isEmpty()) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Favorite,
-                                contentDescription = null,
-                                tint = Color(0xFFE5E7EB),
-                                modifier = Modifier.size(80.dp)
-                            )
-                            Text(
-                                t.emptyWishlist,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = TextMuted
-                            )
-                            Button(
-                                onClick = onNavigateCats,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Primary)
-                            ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Rounded.Favorite, null, tint = Gray200, modifier = Modifier.size(80.dp))
+                            Spacer(Modifier.height(16.dp))
+                            Text(t.emptyWishlist, fontSize = 18.sp, color = TextMuted)
+                            Spacer(Modifier.height(24.dp))
+                            Button(onClick = onNavigateCats, shape = RoundedCornerShape(12.dp)) {
                                 Text(t.goToCatalog)
                             }
                         }
                     }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(220.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        columns = GridCells.Fixed(3),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                        contentPadding = PaddingValues(bottom = 20.dp)
                     ) {
                         items(filteredProducts) { product ->
                             WishlistProductCard(
                                 product = product,
-                                onAdd = { AppState.addToCart(product) },
-                                onRemove = { AppState.toggleWishlist(product.id) }
+                                onRemove = { AppState.toggleWishlist(product.id) },
+                                onProductTap = { tappedProductForStoreMap = product }
                             )
                         }
                     }
@@ -200,92 +139,78 @@ fun WishlistScreen(
             }
         }
         CartPanel(onCheckout = onNavigateToCart)
+
+        tappedProductForStoreMap?.let { product ->
+            StoreMapOverlayDialog(product = product, onDismiss = { tappedProductForStoreMap = null })
+        }
     }
 }
 
 @Composable
 private fun WishlistProductCard(
     product: Product,
-    onAdd: () -> Unit,
     onRemove: () -> Unit,
+    onProductTap: () -> Unit,
 ) {
     val lang = AppState.language
     val name = product.localizedName(lang)
     val context = LocalContext.current
 
     Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            color = White,
-            shadowElevation = 2.dp
-        ) {
-            Column {
-                Box(Modifier.fillMaxWidth().height(150.dp).background(Gray100)) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context).data(product.imageUrl).crossfade(true).build(),
-                        placeholder = painterResource(R.drawable.product_placeholder),
-                        error = painterResource(R.drawable.product_placeholder),
-                        contentDescription = name,
-                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(10.dp)
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(White.copy(alpha = 0.9f))
-                            .clickable { onRemove() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.Favorite,
-                            contentDescription = null,
-                            tint = ErrorRed,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+        modifier = Modifier.fillMaxWidth().height(140.dp).clickable { onProductTap() },
+        shape = RoundedCornerShape(20.dp),
+        color = White,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.dp, Gray100)
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box {
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(product.imageUrl).crossfade(true).build(),
+                    placeholder = painterResource(R.drawable.product_placeholder),
+                    error = painterResource(R.drawable.product_placeholder),
+                    contentDescription = name,
+                    modifier = Modifier.size(100.dp).clip(RoundedCornerShape(16.dp)).background(Gray100),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(White.copy(alpha = 0.9f))
+                        .clickable { onRemove() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.Favorite, null, tint = ErrorRed, modifier = Modifier.size(16.dp))
                 }
-                Column(Modifier.padding(12.dp)) {
-                    Text(
-                        name,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        product.category,
-                        fontSize = 11.sp,
-                        color = TextMuted,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            }
+            
+            Spacer(Modifier.width(16.dp))
+            
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(product.category, fontSize = 12.sp, color = TextMuted)
+                }
+                
+                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                    Text(product.formattedPrice(), fontSize = 18.sp, fontWeight = FontWeight.Black, color = Primary)
+                    
+                    Surface(
+                        color = PrimaryLight.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.clickable { onProductTap() }
                     ) {
-                        Text(
-                            product.formattedPrice(),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Primary
-                        )
-                        Box(
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color(0xFFF3F4F6)).padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Primary))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Auto-detected by AI camera", fontSize = 12.sp, color = TextSecondary)
-                            }
+                        Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Map, null, tint = Primary, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Карта", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Primary)
                         }
                     }
                 }
             }
         }
+    }
 }

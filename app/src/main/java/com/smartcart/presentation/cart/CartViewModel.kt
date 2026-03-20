@@ -17,10 +17,9 @@ class CartViewModel @Inject constructor(
         viewModelScope.launch {
             val session = AppState.buildCurrentSession()
             if (session != null) {
-                sessionCache.saveAsync(session)
+                sessionCache.save(session)
             }
             onCompleted()
         }
     }
 }
-
