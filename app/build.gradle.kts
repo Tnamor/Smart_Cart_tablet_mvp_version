@@ -1,9 +1,8 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    // AGP 9+ built-in Kotlin — do not apply org.jetbrains.kotlin.android (duplicate `kotlin` extension)
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
-    id("org.jetbrains.kotlin.kapt")
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
 }
@@ -28,25 +27,20 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    // jvmTarget follows targetCompatibility with AGP built-in Kotlin
     buildFeatures {
         compose = true
         buildConfig = true
     }
 }
 
-kapt {
-    correctErrorTypes = true
+ksp {
+    arg("room.generateKotlin", "true")
 }
 
 dependencies {
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.0.21"))
-    constraints {
-        implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
-        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.21")
-        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.21")
-        implementation("com.squareup.okio:okio-jvm:3.9.0")
-    }
+    val kotlinVersion = "2.1.0"
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:$kotlinVersion"))
 
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
@@ -72,15 +66,17 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
-    // Hilt DI
-    implementation("com.google.dagger:hilt-android:2.54")
-    kapt("com.google.dagger:hilt-compiler:2.54")
+    // Hilt DI (Migrated to KSP)
+    val hiltVersion = "2.59.2"
+    implementation("com.google.dagger:hilt-android:$hiltVersion")
+    ksp("com.google.dagger:hilt-android-compiler:$hiltVersion")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
     // Room (offline cache)
-    implementation("androidx.room:room-runtime:2.8.4")
-    implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
+    val roomVersion = "2.7.0-alpha11"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
 
     // Retrofit + OkHttp (network layer)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
@@ -88,11 +84,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    // ML Kit barcode scanning (optional, for QR)
+    // ML Kit barcode scanning
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
-
-
-
 
     implementation(platform("com.google.firebase:firebase-bom:34.9.0"))
     implementation("com.google.firebase:firebase-auth")

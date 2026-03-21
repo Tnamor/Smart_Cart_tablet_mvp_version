@@ -31,11 +31,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.smartcart.data.model.AppStrings
 import com.smartcart.data.model.CartItem
 import com.smartcart.ui.components.rememberQrBitmap
 import com.smartcart.data.repository.AppState
+import com.smartcart.presentation.cart.CartViewModel
 import com.smartcart.ui.theme.*
 import kotlin.math.absoluteValue
 import kotlinx.coroutines.delay
@@ -47,15 +49,18 @@ private data class SavedCard(val id: String, val bankName: String, val type: Str
 @Composable
 fun CartScreen(
     onNavigateToList: () -> Unit,
-    onNavigateToReceipt: () -> Unit,
+    onNavigateToReceipt: (String) -> Unit,
+    viewModel: CartViewModel = hiltViewModel()
 ) {
     val cart = AppState.cart.toList()
-    // Базовые расчеты (в "USD"), конвертация будет внутри asPrice() -> format(Double)
     val subtotal = AppState.cartTotal
     val vat = subtotal * 0.12
     val discount = AppState.cartDiscount
     val total = (subtotal + vat - discount).coerceAtLeast(0.0)
     
+    val isProcessing by viewModel.isProcessing.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     val savedCards = remember {
         listOf(
             SavedCard("kaspi", "Kaspi Bank", "Visa", "4242"),
@@ -65,117 +70,140 @@ fun CartScreen(
     var selectedPayment by remember { mutableStateOf(PaymentType.KASPI) }
     var selectedCard by remember { mutableStateOf(savedCards.first().id) }
 
-    Row(modifier = Modifier.fillMaxSize().background(Background)) {
-        // Left Panel: Order Summary
-        Column(modifier = Modifier.weight(0.55f).fillMaxSize().padding(32.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onNavigateToList) { Icon(Icons.Rounded.ArrowBack, null, tint = TextPrimary) }
-                Spacer(Modifier.width(8.dp))
-                Text(AppState.t().checkout, fontWeight = FontWeight.Black, fontSize = 28.sp, color = TextPrimary)
-            }
-            
-            Spacer(Modifier.height(24.dp))
-            Text(AppState.t().orderSummary, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary)
-            Spacer(Modifier.height(16.dp))
-
-            Surface(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                color = White,
-                border = BorderStroke(1.dp, Border)
-            ) {
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                    items(cart) { item -> CheckoutItemRow(item) }
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-            
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PriceRow(AppState.t().subtotal, subtotal.asPrice())
-                PriceRow(AppState.t().vat, vat.asPrice())
-                PriceRow(AppState.t().discounts, "-${discount.asPrice()}", valueColor = SuccessGreen)
-                
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = BorderStrong)
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(AppState.t().total, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = TextPrimary)
-                    Spacer(Modifier.weight(1f))
-                    Text(total.asPrice(), fontWeight = FontWeight.Black, fontSize = 32.sp, color = Primary)
-                }
-            }
-            
-            Spacer(Modifier.height(20.dp))
-            
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = Color(0xFFFFF7ED)
-            ) {
-                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Star, null, tint = AccentOrange, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Бонусы за покупку", fontSize = 13.sp, color = TextSecondary)
-                        Text("27 Loyalty Points", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AccentOrange)
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Row(modifier = Modifier.fillMaxSize().background(Background)) {
+                // Left Panel: Order Summary
+                Column(modifier = Modifier.weight(0.55f).fillMaxSize().padding(32.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onNavigateToList) { Icon(Icons.Rounded.ArrowBack, null, tint = TextPrimary) }
+                        Spacer(Modifier.width(8.dp))
+                        Text(AppState.t().checkout, fontWeight = FontWeight.Black, fontSize = 28.sp, color = TextPrimary)
                     }
-                }
-            }
-        }
-
-        // Right Panel: Payment Method
-        Column(modifier = Modifier.weight(0.45f).fillMaxSize().background(White).padding(32.dp)) {
-            Text(AppState.t().paymentMethod, fontWeight = FontWeight.Black, fontSize = 20.sp, color = TextPrimary)
-            Spacer(Modifier.height(24.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Gray100).padding(4.dp)
-            ) {
-                PaymentTab(Icons.Outlined.QrCode, "Kaspi QR", selectedPayment == PaymentType.KASPI) { selectedPayment = PaymentType.KASPI }
-                PaymentTab(Icons.Outlined.CreditCard, AppState.t().creditCard, selectedPayment == PaymentType.CARD) { selectedPayment = PaymentType.CARD }
-            }
-            
-            Spacer(Modifier.height(32.dp))
-            
-            when (selectedPayment) {
-                PaymentType.KASPI -> KaspiQrSection(total = total, t = AppState.t())
-                PaymentType.CARD -> {
-                    Text("Ваши карты", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    
+                    Spacer(Modifier.height(24.dp))
+                    Text(AppState.t().orderSummary, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextPrimary)
                     Spacer(Modifier.height(16.dp))
-                    savedCards.forEach { card ->
-                        SavedCardRow(card = card, isSelected = selectedCard == card.id, onSelect = { selectedCard = card.id })
+
+                    Surface(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = White,
+                        border = BorderStroke(1.dp, Border)
+                    ) {
+                        LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                            items(cart) { item -> CheckoutItemRow(item) }
+                        }
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+                    
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PriceRow(AppState.t().subtotal, subtotal.asPrice())
+                        PriceRow(AppState.t().vat, vat.asPrice())
+                        PriceRow(AppState.t().discounts, "-${discount.asPrice()}", valueColor = SuccessGreen)
+                        
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = BorderStrong)
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(AppState.t().total, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = TextPrimary)
+                            Spacer(Modifier.weight(1f))
+                            Text(total.asPrice(), fontWeight = FontWeight.Black, fontSize = 32.sp, color = Primary)
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(20.dp))
+                    
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFFFF7ED)
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Star, null, tint = AccentOrange, modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text("Бонусы за покупку", fontSize = 13.sp, color = TextSecondary)
+                                Text("27 Loyalty Points", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AccentOrange)
+                            }
+                        }
+                    }
+                }
+
+                // Right Panel: Payment Method
+                Column(modifier = Modifier.weight(0.45f).fillMaxSize().background(White).padding(32.dp)) {
+                    Text(AppState.t().paymentMethod, fontWeight = FontWeight.Black, fontSize = 20.sp, color = TextPrimary)
+                    Spacer(Modifier.height(24.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Gray100).padding(4.dp)
+                    ) {
+                        PaymentTab(Icons.Outlined.QrCode, "Kaspi QR", selectedPayment == PaymentType.KASPI) { selectedPayment = PaymentType.KASPI }
+                        PaymentTab(Icons.Outlined.CreditCard, AppState.t().creditCard, selectedPayment == PaymentType.CARD) { selectedPayment = PaymentType.CARD }
+                    }
+                    
+                    Spacer(Modifier.height(32.dp))
+                    
+                    when (selectedPayment) {
+                        PaymentType.KASPI -> KaspiQrSection(total = total, t = AppState.t())
+                        PaymentType.CARD -> {
+                            Text("Ваши карты", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Spacer(Modifier.height(16.dp))
+                            savedCards.forEach { card ->
+                                SavedCardRow(card = card, isSelected = selectedCard == card.id, onSelect = { selectedCard = card.id })
+                            }
+                        }
+                    }
+                    
+                    Spacer(Modifier.weight(1f))
+                    
+                    Button(
+                        onClick = {
+                            viewModel.completePurchase(
+                                onSuccess = { receiptId -> onNavigateToReceipt(receiptId) },
+                                onError = { message -> 
+                                    // Handle error
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().height(60.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                        enabled = cart.isNotEmpty() && !isProcessing
+                    ) {
+                        if (isProcessing) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = White)
+                        } else {
+                            Text(AppState.t().completePurchase, color = White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(Modifier.width(10.dp))
+                            Icon(Icons.Rounded.ArrowForward, null, tint = White)
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        AppState.t().terms,
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Spacer(Modifier.height(16.dp))
+                    TextButton(onClick = {}, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.SupportAgent, null, tint = Primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(AppState.t().callAssistant, color = Primary, fontWeight = FontWeight.Bold)
                     }
                 }
             }
-            
-            Spacer(Modifier.weight(1f))
-            
-            Button(
-                onClick = onNavigateToReceipt,
-                modifier = Modifier.fillMaxWidth().height(60.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                enabled = cart.isNotEmpty()
-            ) {
-                Text(AppState.t().completePurchase, color = White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Spacer(Modifier.width(10.dp))
-                Icon(Icons.Rounded.ArrowForward, null, tint = White)
-            }
-            
-            Spacer(Modifier.height(12.dp))
-            Text(
-                AppState.t().terms,
-                fontSize = 11.sp,
-                color = TextMuted,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            Spacer(Modifier.height(16.dp))
-            TextButton(onClick = {}, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.SupportAgent, null, tint = Primary, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(AppState.t().callAssistant, color = Primary, fontWeight = FontWeight.Bold)
+
+            if (isProcessing) {
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Primary)
+                }
             }
         }
     }

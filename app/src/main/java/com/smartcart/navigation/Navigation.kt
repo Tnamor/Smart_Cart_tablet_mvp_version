@@ -105,7 +105,8 @@ fun AppNavigation() {
             CartScreen(
                 onNavigateToList = { nav.navigate("list") },
                 onNavigateToReceipt = { receiptId ->
-                    nav.navigate("receipt/$receiptId") }
+                    nav.navigate("receipt/$receiptId")
+                }
             )
         }
         composable("receipt/{receiptId}") { backStackEntry ->

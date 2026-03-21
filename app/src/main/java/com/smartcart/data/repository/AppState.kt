@@ -19,6 +19,7 @@ object AppState {
     var language  by mutableStateOf(AppLanguage.RU)
     var currentUser by mutableStateOf<User?>(null)
     var budgetTenge by mutableStateOf<Double?>(null)
+    var releaseEvent by mutableIntStateOf(0)
 
     val products = mutableStateListOf<Product>().apply { addAll(MockData.products) }
     val cart      = mutableStateListOf<CartItem>()
