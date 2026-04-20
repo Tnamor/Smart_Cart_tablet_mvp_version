@@ -8,7 +8,7 @@ object CurrencyConfig {
     const val POSITION: String = "after" // "before" or "after"
 
     fun format(amount: Double): String {
-        val tenge = (amount * 130).toInt()
+        val tenge = (amount).toInt()
         return formatInt(tenge)
     }
 

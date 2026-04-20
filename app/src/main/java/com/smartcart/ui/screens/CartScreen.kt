@@ -242,7 +242,7 @@ private fun KaspiQrSection(total: Double, t: AppStrings) {
     var timestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
     
     // Генерируем данные для QR в тенге (целые числа для Kaspi)
-    val totalTenge = (total * 130).toInt()
+    val totalTenge = (total).toInt()
     val amountTiyn = totalTenge * 100
     val qrContent = "kaspi://pay?amount=$amountTiyn&currency=KZT&ref=smartcart&ts=$timestamp"
     val qrBitmap = rememberQrBitmap(qrContent)

@@ -17,14 +17,14 @@ object CartSyncRepository {
             hashMapOf(
                 "name" to item.product.nameEn,
                 "barcode" to item.product.barcode,
-                "price" to (item.product.price * 130).toInt(),
+                "price" to (item.product.price).toInt(),
                 "quantity" to item.quantity,
                 "imageUrl" to item.product.imageUrl,
                 "brand" to ""
             )
         }
 
-        val totalAmount = AppState.cart.sumOf { (it.product.price * 130).toInt() * it.quantity }
+        val totalAmount = AppState.cart.sumOf { (it.product.price).toInt() * it.quantity }
 
         val updateData = mapOf(
             "items" to itemsList,

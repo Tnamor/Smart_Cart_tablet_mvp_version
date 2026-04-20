@@ -237,7 +237,7 @@ fun CartPanel(onCheckout: () -> Unit) {
                         Text(t.setBudget, color = Primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 } else {
-                    BudgetTracker(cartTotalTenge = total * 130.0, budgetTenge = budget, onSetBudget = {
+                    BudgetTracker(cartTotalTenge = total, budgetTenge = budget, onSetBudget = {
                         showBudgetDialog = true
                     })
                 }

@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.smartcart.R
 import com.smartcart.data.model.Product
 import com.smartcart.data.repository.AppState
@@ -45,6 +47,7 @@ import com.smartcart.ui.components.SharedSidebar
 import com.smartcart.ui.components.SharedTopBar
 import com.smartcart.ui.components.StoreMapOverlayDialog
 import com.smartcart.data.CurrencyConfig
+import com.smartcart.data.model.CartItem
 import com.smartcart.ui.theme.*
 
 @Composable
@@ -55,7 +58,88 @@ fun HomeScreen(
     onNavigateCats: () -> Unit = {},
     onNavigateWishlist: () -> Unit = {},
     onNavigateSupport: () -> Unit = {},
+    onSessionEnded: () -> Unit,   // <-- добавить
 ) {
+
+
+    val db = FirebaseFirestore.getInstance()
+    val cartId = "cart_001"
+    var listenerRegistration by remember { mutableStateOf<ListenerRegistration?>(null) }
+
+    LaunchedEffect(cartId) {
+        listenerRegistration?.remove()
+
+        listenerRegistration = db.collection("carts")
+            .document(cartId)
+            .addSnapshotListener { snapshot, error ->
+
+                if (error != null) return@addSnapshotListener
+                if (snapshot == null || !snapshot.exists()) return@addSnapshotListener
+
+                val statusValue = snapshot.getString("status") ?: "available"
+
+                if (statusValue == "available") {
+                    AppState.cart.clear()
+                    AppState.shoppingList.clear()
+                    AppState.currentUser = null
+                    onSessionEnded()
+                    return@addSnapshotListener
+                }
+
+                val items = snapshot.get("items") as? List<Map<String, Any>> ?: emptyList()
+
+                val parsedItems = items.mapNotNull { item ->
+                    try {
+                        val id = item["id"] as? String
+                        val barcode = item["barcode"] as? String ?: ""
+                        val name = item["name"] as? String ?: "Unknown product"
+                        val quantity = (item["quantity"] as? Number)?.toInt() ?: 1
+                        val price = (item["price"] as? Number)?.toDouble() ?: 0.0
+                        val imageUrl = item["imageUrl"] as? String ?: ""
+                        val brand = item["brand"] as? String ?: ""
+                        val imageEmoji = item["imageEmoji"] as? String ?: ""
+
+                        val existingProduct = AppState.products.find { p ->
+                            (id != null && p.id == id) || (barcode.isNotBlank() && p.barcode == barcode)
+                        }
+
+                        val product = existingProduct ?: Product(
+                            id = id ?: barcode.ifBlank { name },
+                            nameEn = name,
+                            nameRu = name,
+                            nameKk = name,
+                            price = price,
+                            imageUrl = imageUrl,
+                            category = brand.ifBlank { "Scanned" },
+                            isNew = false,
+                            barcode = barcode,
+                            unit = "шт",
+                            zoneId = id ?: barcode.ifBlank { name }
+                        )
+
+                        CartItem(
+                            product = product,
+                            quantity = quantity,
+                            addedByCamera = item["addedByCamera"] as? Boolean ?: false,
+                            addedManually = item["addedManually"] as? Boolean ?: false
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                AppState.cart.clear()
+                AppState.cart.addAll(parsedItems)
+            }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            listenerRegistration?.remove()
+        }
+    }
+
+
     val t        = AppState.t()
     val lang     = AppState.language
     val products = AppState.products
@@ -342,4 +426,4 @@ private fun CategoryBox(label: String, bg: Color, textColor: Color, imgUrl: Stri
 
 @Preview(showBackground = true, device = "spec:width=1920dp,height=1104dp,dpi=160")
 @Composable
-private fun Preview() { SmartCartTheme { HomeScreen({}, {}) } }
+private fun Preview() { SmartCartTheme { HomeScreen({}, {}, {}, {}, {}, {}, {}) } }

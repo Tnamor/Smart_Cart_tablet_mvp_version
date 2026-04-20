@@ -1,5 +1,6 @@
 package com.smartcart.data.repository
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -42,11 +43,14 @@ object PurchaseRepository {
             Locale.getDefault()
         ).format(Date())
 
+        AppState.cart.forEach { item ->
+            Log.d("PRICE_DEBUG", "${item.product.nameEn} -> ${item.product.price}")
+        }
         val itemsList = cartItems.map { item ->
             hashMapOf(
                 "name" to item.product.localizedName(AppState.language),
                 "barcode" to item.product.barcode,
-                "price" to (item.product.price * 130).toInt(),
+                "price" to (item.product.price).toInt(),
                 "quantity" to item.quantity,
                 "imageUrl" to item.product.imageUrl,
                 "brand" to "",
@@ -55,7 +59,7 @@ object PurchaseRepository {
             )
         }
 
-        val totalAmount = cartItems.sumOf { (it.product.price * 130).toInt() * it.quantity }
+        val totalAmount = cartItems.sumOf { (it.product.price).toInt() * it.quantity }
         val totalItems = cartItems.sumOf { it.quantity }
 
         val purchaseData = hashMapOf(

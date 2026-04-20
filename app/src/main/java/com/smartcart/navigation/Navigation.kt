@@ -51,7 +51,12 @@ fun AppNavigation() {
                 onNavigateDeals = { nav.navigate("deals") { launchSingleTop = true } },
                 onNavigateCats = { nav.navigate("cats") { launchSingleTop = true } },
                 onNavigateWishlist = { nav.navigate("favs") { launchSingleTop = true } },
-                onNavigateSupport = { nav.navigate("support") { launchSingleTop = true } }
+                onNavigateSupport = { nav.navigate("support") { launchSingleTop = true } },
+                onSessionEnded = {
+                    nav.navigate("login") {
+                        popUpTo(0)
+                    }
+                }
             )
         }
         composable("deals") {

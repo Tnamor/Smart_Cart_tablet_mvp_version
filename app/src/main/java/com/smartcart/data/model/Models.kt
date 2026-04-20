@@ -305,14 +305,14 @@ fun AppLanguage.strings() = when (this) {
 
 object MockData {
     val products = listOf(
-        Product(id = "1", nameEn = "Organic Avocado", nameRu = "Авокадо органик", nameKk = "Органикалық Авокадо", price = 8.90, imageUrl = "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400", category = "Fruits", barcode = "123456"),
-        Product(id = "2", nameEn = "Whole Milk", nameRu = "Молоко цельное", nameKk = "Толық сүт", price = 4.50, imageUrl = "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400", category = "Dairy", barcode = "234567"),
-        Product(id = "3", nameEn = "Sourdough Bread", nameRu = "Хлеб на закваске", nameKk = "Ашыған нан", price = 6.50, imageUrl = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400", category = "Bakery", barcode = "345678"),
-        Product(id = "4", nameEn = "Greek Yogurt", nameRu = "Йогурт греческий", nameKk = "Грек йогурты", price = 3.80, imageUrl = "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400", category = "Dairy", barcode = "456789"),
-        Product(id = "5", nameEn = "Chicken Breast", nameRu = "Куриная грудка", nameKk = "Тауық омырауы", price = 12.00, imageUrl = "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=400", category = "Meat", barcode = "567890"),
-        Product(id = "6", nameEn = "Cherry Tomatoes", nameRu = "Помидоры черри", nameKk = "Шие қызанақтар", price = 5.20, imageUrl = "https://images.unsplash.com/photo-1546470427-22706f4f4d82?w=400", category = "Vegetables", barcode = "678901"),
-        Product(id = "7", nameEn = "Orange Juice", nameRu = "Сок апельсиновый", nameKk = "Апельсин шырыны", price = 7.50, imageUrl = "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=400", category = "Beverages", isNew = true, barcode = "789012"),
-        Product(id = "8", nameEn = "Pasta Barilla", nameRu = "Паста Барилла", nameKk = "Барилла пастасы", price = 4.20, imageUrl = "https://images.unsplash.com/photo-1556761223-4c4282c73f77?w=400", category = "Grocery", barcode = "890123"),
+        Product(id = "1", nameEn = "Organic Avocado", nameRu = "Авокадо органик", nameKk = "Органикалық Авокадо", price = 1157.0, imageUrl = "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=400", category = "Fruits", barcode = "123456"),
+        Product(id = "2", nameEn = "Whole Milk", nameRu = "Молоко цельное", nameKk = "Толық сүт", price = 585.0, imageUrl = "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400", category = "Dairy", barcode = "234567"),
+        Product(id = "3", nameEn = "Sourdough Bread", nameRu = "Хлеб на закваске", nameKk = "Ашыған нан", price = 845.0, imageUrl = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400", category = "Bakery", barcode = "345678"),
+        Product(id = "4", nameEn = "Greek Yogurt", nameRu = "Йогурт греческий", nameKk = "Грек йогурты", price = 494.0, imageUrl = "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400", category = "Dairy", barcode = "456789"),
+        Product(id = "5", nameEn = "Chicken Breast", nameRu = "Куриная грудка", nameKk = "Тауық омырауы", price = 1560.0, imageUrl = "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=400", category = "Meat", barcode = "567890"),
+        Product(id = "6", nameEn = "Cherry Tomatoes", nameRu = "Помидоры черри", nameKk = "Шие қызанақтар", price = 676.0, imageUrl = "https://images.unsplash.com/photo-1546470427-22706f4f4d82?w=400", category = "Vegetables", barcode = "678901"),
+        Product(id = "7", nameEn = "Orange Juice", nameRu = "Сок апельсиновый", nameKk = "Апельсин шырыны", price = 975.0, imageUrl = "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=400", category = "Beverages", isNew = true, barcode = "789012"),
+        Product(id = "8", nameEn = "Pasta Barilla", nameRu = "Паста Барилла", nameKk = "Барилла пастасы", price = 546.0, imageUrl = "https://images.unsplash.com/photo-1556761223-4c4282c73f77?w=400", category = "Grocery", barcode = "890123"),
     )
 
     val shoppingList = listOf(
