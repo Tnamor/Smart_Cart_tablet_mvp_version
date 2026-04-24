@@ -28,8 +28,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+
         enableEdgeToEdge()
         enterImmersiveMode()
         runCatching { startLockTask() }
@@ -49,5 +50,6 @@ class MainActivity : ComponentActivity() {
     }
 
     @Deprecated("Blocked for kiosk")
-    override fun onBackPressed() { /* intentionally empty */ }
+    override fun onBackPressed() {
+        super.onBackPressed() /* intentionally empty */ }
 }

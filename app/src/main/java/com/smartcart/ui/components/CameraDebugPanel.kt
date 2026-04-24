@@ -21,15 +21,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.smartcart.BuildConfig
+import com.smartcart.data.model.Product
 import com.smartcart.data.repository.AppState
+import com.smartcart.data.repository.CartSyncRepository
 import com.smartcart.ui.theme.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlin.math.roundToInt
 
 @Composable
-fun CameraDebugPanel(modifier: Modifier = Modifier) {
+fun CameraDebugPanel(modifier: Modifier = Modifier, onOpenCamera: () -> Unit) {
+
+    val scope = rememberCoroutineScope()
+    val db = remember { FirebaseFirestore.getInstance() }
+    val cartId = "cart_001"
     if (!BuildConfig.DEBUG) return
 
     var eventMessage by remember { mutableStateOf<String?>(null) }
@@ -38,13 +47,24 @@ fun CameraDebugPanel(modifier: Modifier = Modifier) {
 
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         if (result.contents != null) {
-            val barcode = result.contents
-            val product = AppState.products.find { it.barcode == barcode }
-            if (product != null) {
-                AppState.addToCart(product, addedByCamera = true, addedManually = false)
-                eventMessage = "✅ Scanned: ${product.nameEn}"
-            } else {
-                eventMessage = "⚠️ Not found: $barcode"
+            val barcode = result.contents.trim()
+            val format = result.formatName
+
+            eventMessage = "Raw: $barcode ($format)"
+            android.util.Log.d("CAMERA_DEBUG", "RAW barcode='$barcode', format='$format'")
+
+            scope.launch {
+                val product = findProductEverywhere(
+                    db = db,
+                    barcode = barcode
+                )
+
+                if (product != null) {
+                    addToTabletCart(product, cartId)
+                    eventMessage = "✅ Scanned: ${product.nameEn}"
+                } else {
+                    eventMessage = "⚠️ Not found: $barcode ($format)"
+                }
             }
         }
     }
@@ -90,12 +110,7 @@ fun CameraDebugPanel(modifier: Modifier = Modifier) {
             // Real Camera Access
             Button(
                 onClick = {
-                    scanLauncher.launch(
-                        ScanOptions()
-                            .setPrompt("Scan product barcode")
-                            .setBeepEnabled(true)
-                            .setOrientationLocked(false)
-                    )
+                    onOpenCamera()
                 },
                 modifier = Modifier.fillMaxWidth().height(40.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
@@ -125,7 +140,7 @@ fun CameraDebugPanel(modifier: Modifier = Modifier) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                AppState.addToCart(product, addedByCamera = true, addedManually = false)
+                                addToTabletCart(product, cartId)
                                 eventMessage = "Simulated: ${product.nameEn}"
                             },
                         color = White.copy(alpha = 0.1f),
@@ -155,4 +170,70 @@ fun CameraDebugPanel(modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+private suspend fun findProductEverywhere(
+    db: FirebaseFirestore,
+    barcode: String? = null,
+    mlLabel: String? = null
+): Product? {
+    val cleanBarcode = barcode?.trim()
+    val cleanMlLabel = mlLabel?.trim()?.lowercase()
+
+    val localProduct = AppState.products.find {
+        (cleanBarcode != null && it.barcode.trim() == cleanBarcode) ||
+                (cleanMlLabel != null && it.nameEn.trim().lowercase() == cleanMlLabel)
+    }
+
+    android.util.Log.d(
+        "CAMERA_DEBUG",
+        "SCANNED barcode='$cleanBarcode', localFound=${localProduct?.nameEn}"
+    )
+
+    if (localProduct != null) return localProduct
+
+    return try {
+        val query = when {
+            cleanBarcode != null -> {
+                android.util.Log.d("CAMERA_DEBUG", "Searching Firestore by barcode=$cleanBarcode")
+                db.collection("products").whereEqualTo("barcode", cleanBarcode)
+            }
+            cleanMlLabel != null -> {
+                db.collection("products").whereEqualTo("ml_label", cleanMlLabel)
+            }
+            else -> null
+        }
+
+        val result = query?.get()?.await()
+        android.util.Log.d("CAMERA_DEBUG", "Firestore result count = ${result?.size() ?: 0}")
+
+        if (result != null && !result.isEmpty) {
+            val doc = result.documents[0]
+            Product(
+                id = doc.id,
+                nameEn = doc.getString("name") ?: "",
+                nameRu = doc.getString("nameRu") ?: doc.getString("name") ?: "",
+                nameKk = doc.getString("nameKk") ?: doc.getString("name") ?: "",
+                price = (doc.get("price") as? Number)?.toDouble() ?: 0.0,
+                imageUrl = doc.getString("imageUrl") ?: "",
+                category = doc.getString("brand") ?: "",
+                barcode = doc.getString("barcode") ?: ""
+            )
+        } else null
+    } catch (e: Exception) {
+        android.util.Log.e("CAMERA_DEBUG", "Firestore search failed", e)
+        null
+    }
+}
+private fun addToTabletCart(
+    product: Product,
+    cartId: String
+) {
+    AppState.addToCart(
+        product = product,
+        addedByCamera = true,
+        addedManually = false
+    )
+
+    CartSyncRepository.syncCartToFirestore(cartId)
 }

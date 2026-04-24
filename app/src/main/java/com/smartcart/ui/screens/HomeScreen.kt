@@ -59,6 +59,7 @@ fun HomeScreen(
     onNavigateWishlist: () -> Unit = {},
     onNavigateSupport: () -> Unit = {},
     onSessionEnded: () -> Unit,   // <-- добавить
+    onOpenCamera: () -> Unit = {},
 ) {
 
 
@@ -312,7 +313,7 @@ fun HomeScreen(
             }
         }
 
-        CameraDebugPanel(modifier = Modifier.align(Alignment.BottomStart).padding(start = 88.dp, bottom = 24.dp))
+        CameraDebugPanel(modifier = Modifier.align(Alignment.BottomStart).padding(start = 88.dp, bottom = 24.dp), onOpenCamera = onOpenCamera)
     }
 
     tappedProductForStoreMap?.let { tapped ->

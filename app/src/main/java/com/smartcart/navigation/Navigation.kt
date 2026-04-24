@@ -56,7 +56,9 @@ fun AppNavigation() {
                     nav.navigate("login") {
                         popUpTo(0)
                     }
-                }
+                },
+                onOpenCamera = { nav.navigate("camera") }
+
             )
         }
         composable("deals") {
@@ -124,5 +126,15 @@ fun AppNavigation() {
                 }
             )
         }
+
+        composable("camera") {
+            CameraScreen(
+                cartId = "cart_001",
+                onBack = {
+                    nav.popBackStack()
+                }
+            )
+        }
+
     }
 }
