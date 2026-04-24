@@ -1,5 +1,6 @@
 package com.smartcart.data.api
 
+import okhttp3.MultipartBody
 import retrofit2.http.*
 
 /**
@@ -48,7 +49,15 @@ interface ApiService {
 
     @POST("api/qr/confirm")
     suspend fun qrConfirm(@Body body: QrConfirmRequest): QrConfirmResponse
+
+    @Multipart
+    @POST("predict")
+    suspend fun detectProductMl(
+        @Part file: MultipartBody.Part
+    ): MlResponse
 }
+
+
 
 // DTOs matching backend
 data class LoginQrRequest(val qr: String)
@@ -115,4 +124,13 @@ data class QrConfirmResponse(
     val sessionToken: String,
     val userId: String,
     val userName: String,
+)
+
+data class MlResponse(
+    val detections: List<MlDetection>
+)
+
+data class MlDetection(
+    val yolo_class: String?,
+    val yolo_confidence: Double?
 )

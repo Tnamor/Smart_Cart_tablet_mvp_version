@@ -38,6 +38,15 @@ import com.smartcart.data.repository.CartSyncRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.Executors
+import android.content.Context
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
+import com.smartcart.ml.MlRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.io.File
 
 private const val TAG = "TabletCameraScreen"
 
@@ -57,6 +66,9 @@ fun CameraScreen(
     var statusMessage by remember { mutableStateOf("Наведи камеру на штрихкод товара") }
     var isProcessing by remember { mutableStateOf(false) }
     var lastBarcode by remember { mutableStateOf<String?>(null) }
+
+    var barcodeFallbackMode by remember { mutableStateOf(false) }
+    var lastMlRequestTime by remember { mutableLongStateOf(0L) }
 
     var hasPermission by remember {
         mutableStateOf(
@@ -112,46 +124,56 @@ fun CameraScreen(
                                 .build()
                                 .also { analysis ->
                                     analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                                        analyzeBarcodeFrame(
-                                            imageProxy = imageProxy,
-                                            isProcessing = isProcessing,
-                                            onProcessingChange = { isProcessing = it },
-                                            onBarcodeDetected = { barcode ->
-                                                if (barcode == lastBarcode) return@analyzeBarcodeFrame
 
-                                                lastBarcode = barcode
-                                                statusMessage = "Штрихкод найден: $barcode"
-                                                Log.d(TAG, "Detected barcode=$barcode")
+                                        if (!barcodeFallbackMode) {
 
-                                                scope.launch {
-                                                    val product = findProductEverywhere(
-                                                        db = db,
-                                                        barcode = barcode
-                                                    )
+                                            handleMlMode(
+                                                context = context,
+                                                imageProxy = imageProxy,
+                                                db = db,
+                                                scope = scope,
+                                                cartId = cartId,
+                                                lastMlRequestTime = lastMlRequestTime,
+                                                onLastMlRequestTimeChanged = { lastMlRequestTime = it },
+                                                onProcessingChange = { isProcessing = it },
+                                                onStatusChange = { statusMessage = it },
+                                                onEnableBarcodeFallback = { barcodeFallbackMode = true },
+                                                onProductAdded = { onBack() }
+                                            )
 
-                                                    if (product != null) {
-                                                        addProductToTabletCart(
-                                                            product = product,
-                                                            cartId = cartId
-                                                        )
+                                        } else {
 
-                                                        statusMessage = "✅ Добавлено: ${product.nameEn}"
+                                            analyzeBarcodeFrame(
+                                                imageProxy = imageProxy,
+                                                isProcessing = isProcessing,
+                                                onProcessingChange = { isProcessing = it },
+                                                onBarcodeDetected = { barcode ->
 
-                                                        // Чтобы сразу вернуться назад после добавления:
-                                                        onBack()
+                                                    if (barcode == lastBarcode) return@analyzeBarcodeFrame
 
-                                                    } else {
-                                                        statusMessage = "⚠️ Товар не найден: $barcode"
+                                                    lastBarcode = barcode
+                                                    statusMessage = "Штрихкод найден: $barcode"
+
+                                                    scope.launch {
+                                                        val product = findProductEverywhere(db, barcode = barcode)
+
+                                                        if (product != null) {
+                                                            addProductToTabletCart(product, cartId)
+                                                            statusMessage = "✅ Добавлено: ${product.nameEn}"
+                                                            onBack()
+                                                        } else {
+                                                            statusMessage = "⚠️ Товар не найден"
+                                                        }
+
+                                                        isProcessing = false
                                                     }
-
+                                                },
+                                                onError = {
+                                                    statusMessage = it
                                                     isProcessing = false
                                                 }
-                                            },
-                                            onError = { error ->
-                                                statusMessage = "Ошибка сканирования: $error"
-                                                isProcessing = false
-                                            }
-                                        )
+                                            )
+                                        }
                                     }
                                 }
 
@@ -344,4 +366,148 @@ private fun addProductToTabletCart(
     }
 
     CartSyncRepository.syncCartToFirestore(cartId)
+}
+
+private fun handleMlMode(
+    context: Context,
+    imageProxy: ImageProxy,
+    db: FirebaseFirestore,
+    scope: kotlinx.coroutines.CoroutineScope,
+    cartId: String,
+    lastMlRequestTime: Long,
+    onLastMlRequestTimeChanged: (Long) -> Unit,
+    onProcessingChange: (Boolean) -> Unit,
+    onStatusChange: (String) -> Unit,
+    onEnableBarcodeFallback: () -> Unit,
+    onProductAdded: () -> Unit
+) {
+    val now = System.currentTimeMillis()
+
+    if (now - lastMlRequestTime < 1500) {
+        imageProxy.close()
+        return
+    }
+
+    onLastMlRequestTimeChanged(now)
+    onProcessingChange(true)
+    onStatusChange("Распознаем товар...")
+
+    val file = try {
+        imageProxyToJpegFile(context, imageProxy)
+    } catch (e: Exception) {
+        onStatusChange("Ошибка подготовки кадра")
+        onProcessingChange(false)
+        imageProxy.close()
+        return
+    }
+
+    scope.launch {
+        try {
+            val mlResult = withContext(Dispatchers.IO) {
+                MlRepository.sendFrameToMl(file)
+            }
+
+            val bestDetection = mlResult?.detections
+                ?.maxByOrNull { it.yolo_confidence ?: 0.0 }
+
+            val yoloClassRaw = bestDetection?.yolo_class?.trim()?.lowercase()
+            val yoloConfidence = bestDetection?.yolo_confidence ?: 0.0
+            val yoloClass = normalizeYoloLabel(yoloClassRaw)
+
+            Log.d(TAG, "ML result class=$yoloClass confidence=$yoloConfidence")
+
+            if (yoloClass != null && yoloConfidence >= 0.35) {
+                onStatusChange("Найдено: $yoloClass")
+
+                val product = findProductEverywhere(
+                    db = db,
+                    mlLabel = yoloClass
+                )
+
+                if (product != null) {
+                    addProductToTabletCart(product, cartId)
+                    onStatusChange("✅ Добавлено: ${product.nameEn}")
+                    onProcessingChange(false)
+                    onProductAdded()
+                } else {
+                    onStatusChange("Товар не найден в базе. Сканируйте штрихкод")
+                    onProcessingChange(false)
+                    onEnableBarcodeFallback()
+                }
+            } else {
+                onStatusChange("ML не распознал товар. Сканируйте штрихкод")
+                onProcessingChange(false)
+                onEnableBarcodeFallback()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "ML error", e)
+            onStatusChange("Ошибка ML: ${e.message}")
+            onProcessingChange(false)
+            onEnableBarcodeFallback()
+        } finally {
+            if (file.exists()) file.delete()
+            imageProxy.close()
+        }
+    }
+}
+
+private fun imageProxyToJpegFile(context: Context, imageProxy: ImageProxy): File {
+    val yBuffer = imageProxy.planes[0].buffer
+    val uBuffer = imageProxy.planes[1].buffer
+    val vBuffer = imageProxy.planes[2].buffer
+
+    val ySize = yBuffer.remaining()
+    val uSize = uBuffer.remaining()
+    val vSize = vBuffer.remaining()
+
+    val nv21 = ByteArray(ySize + uSize + vSize)
+
+    yBuffer.get(nv21, 0, ySize)
+    vBuffer.get(nv21, ySize, vSize)
+    uBuffer.get(nv21, ySize + vSize, uSize)
+
+    val yuvImage = YuvImage(
+        nv21,
+        ImageFormat.NV21,
+        imageProxy.width,
+        imageProxy.height,
+        null
+    )
+
+    val out = ByteArrayOutputStream()
+    yuvImage.compressToJpeg(
+        Rect(0, 0, imageProxy.width, imageProxy.height),
+        90,
+        out
+    )
+
+    val file = File(context.cacheDir, "ml_frame_${System.currentTimeMillis()}.jpg")
+    file.writeBytes(out.toByteArray())
+
+    return file
+}
+
+private fun normalizeYoloLabel(label: String?): String? {
+    if (label == null) return null
+
+    return when (label.lowercase()) {
+        "apple" -> "apple"
+        "banana" -> "banana"
+        "orange" -> "orange"
+
+        "coca-cola_can" -> "coca-cola can"
+        "coca-cola_box" -> "coca-cola carton"
+        "coca-cola_bottle" -> "coca-cola bottle"
+
+        "fanta_box" -> "fanta carton"
+        "fanta_bottle" -> "fanta bottle"
+
+        "fusetea_box" -> "fuse tea carton"
+        "fusetea_bottle" -> "fuse tea bottle"
+
+        "sprite_box" -> "sprite carton"
+        "sprite_bottle" -> "sprite bottle"
+
+        else -> label.replace("_", " ")
+    }
 }

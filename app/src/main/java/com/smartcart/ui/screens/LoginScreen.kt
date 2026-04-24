@@ -65,25 +65,39 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         listenerRegistration = db.collection("carts")
             .document(cartId)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-                if (snapshot == null || !snapshot.exists()) return@addSnapshotListener
 
-                val statusValue = snapshot.getString("status") ?: "available"
+                if (error != null) {
+                    android.util.Log.e("QR_LOGIN", "Firestore listener error", error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot == null || !snapshot.exists()) {
+                    android.util.Log.d("QR_LOGIN", "snapshot null or not exists")
+                    return@addSnapshotListener
+                }
+
+                android.util.Log.d("QR_LOGIN", "data=${snapshot.data}")
+
+                val statusValue = snapshot.getString("status")?.trim()?.lowercase() ?: "available"
                 val userName = snapshot.getString("connectedUserName") ?: ""
                 val userEmail = snapshot.getString("connectedUserEmail") ?: ""
+                val userId = snapshot.getString("connectedUserId") ?: ""
+
+                android.util.Log.d("QR_LOGIN", "status=$statusValue userId=$userId userName=$userName email=$userEmail")
 
                 if (statusValue == "connected") {
                     connectedUserName = if (userName.isNotBlank()) userName else userEmail
                     status = ScanStatus.AUTHENTICATED
-                    
-                    // Automatically log in if connected via phone
+
                     AppState.currentUser = User(
-                        id = snapshot.getString("connectedUserId") ?: "user_remote",
+                        id = userId.ifBlank { "user_remote" },
                         name = connectedUserName ?: "User",
                         email = userEmail
                     )
+
                     scope.launch {
                         delay(500)
+                        android.util.Log.d("QR_LOGIN", "calling onLoginSuccess()")
                         onLoginSuccess()
                     }
                 } else {
